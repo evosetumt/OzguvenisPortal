@@ -1,0 +1,73 @@
+/* Ayarlar: bildirim tercihleri ve kurallar */
+.push-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.push-row .push { margin-left: auto; }
+.ok-ic { color: var(--ok); }
+.muted-ic, .muted { color: var(--muted); }
+.pref-matrix td, .pref-matrix th { padding: 8px 10px; }
+.pref-matrix th:not(:first-child), .pref-matrix td:not(:first-child) { text-align: center; }
+.pref-matrix tbody tr.static { cursor: default; }
+.pref-matrix tr.inactive td:first-child { color: var(--muted); }
+.pref-matrix input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.pref-matrix .code { display: block; color: var(--muted); font-size: 11px; }
+.channel-status { margin: 4px 0 12px; }
+.chip.static { cursor: default; }
+.chip.on-ok { border-color: var(--ok); color: var(--ok); }
+.chip.off { color: var(--muted); }
+.sub.small { font-size: 12px; margin-top: 8px; }
+
+/* Sohbet arşivi (Ayarlar → Sohbet arşivi) */
+.archive-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.archive-filters .chat-search { flex: 1; min-width: 200px; margin: 0; }
+.archive-body { display: grid; grid-template-columns: 300px 1fr; gap: 12px; height: min(70vh, 720px); }
+.archive-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; border-right: 1px solid var(--sep); padding-right: 8px; }
+.archive-placeholder { align-self: center; justify-self: center; }
+.archive-thread { display: flex; flex-direction: column; min-height: 0; gap: 8px; }
+.archive-thread header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--sep); }
+.archive-thread header .check { margin-left: auto; font-size: 13px; }
+.archive-back { display: none; }
+.archive-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.archive-msgs > .btn { align-self: center; }
+.archive-msg { padding: 8px 12px; border-radius: var(--r-md); background: var(--fill); }
+.archive-msg.deleted { background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px dashed color-mix(in srgb, var(--danger) 45%, transparent); }
+.archive-msg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.archive-msg-head .btn { margin-left: auto; }
+.archive-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.archive-revs { margin-top: 6px; font-size: 13px; }
+.archive-revs summary { cursor: pointer; color: var(--accent); }
+.archive-revs ol { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; white-space: pre-wrap; }
+.tag.danger { display: inline-flex; align-items: center; gap: 4px; color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.archive .tag { display: inline-flex; align-items: center; gap: 4px; }
+
+@media (max-width: 860px) {
+  .archive-body { grid-template-columns: 1fr; height: auto; }
+  .archive-list { border-right: 0; padding-right: 0; max-height: 60vh; }
+  .archive-body.has-active .archive-list, .archive-body:not(.has-active) .archive-thread, .archive-body.has-active .archive-placeholder { display: none; }
+  .archive-back { display: inline-flex; }
+  .archive-thread header .check { margin-left: 0; }
+}
+
+/* Roller ve yetkiler */
+.roles-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.roles-head h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.roles-picker { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.roles-picker button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--fill); color: var(--text); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.roles-picker button small { color: var(--muted); font-weight: 500; }
+.roles-picker button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.roles-locked { display: flex; align-items: center; gap: 6px; }
+.roles-modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.roles-module { border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--fill); }
+.roles-module.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.roles-module-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.roles-module-head b { flex: 1 1 auto; min-width: 0; }
+.tag.fin { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+.roles-perm { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; padding-top: 8px; border-top: 1px solid var(--sep); }
+.roles-perm > span { min-width: 0; flex: 1 1 auto; }
+.roles-perm select { flex: 0 1 220px; min-width: 0; }
+.roles-actions { margin-top: 14px; align-items: center; }
+@media (max-width: 860px) {
+  .roles-modules { grid-template-columns: 1fr; }
+  .roles-perm { flex-direction: column; align-items: stretch; gap: 6px; }
+  .roles-perm select { flex: none; width: 100%; }
+}

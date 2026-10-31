@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Özgüveniş</string>
+    <string name="title_activity_main">Özgüveniş</string>
+    <string name="package_name">tr.com.ozguvenis.portal</string>
+    <string name="custom_url_scheme">tr.com.ozguvenis.portal</string>
+</resources>

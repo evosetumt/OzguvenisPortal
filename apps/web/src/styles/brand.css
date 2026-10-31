@@ -1,0 +1,61 @@
+/* Şirket logosu: katmanlar üst üste; koyu temada gri parçalar okunabilsin diye açılır. */
+.brand-logo { position: relative; display: block; width: 100%; user-select: none; }
+.bl-piece { position: absolute; inset: 0; }
+.bl-piece img { position: absolute; display: block; max-width: none; pointer-events: none; }
+.bl-grey { filter: brightness(2.35) saturate(0); }
+:root[data-theme='light'] .bl-grey { filter: none; }
+
+/* ---------- Kurulma animasyonu ----------
+   1. gri halka alttan sola doğru çizilir, altın halka üstten sağa devam eder
+   2. G kancası yukarıdan aşağı, iki çubuk soldan sağa yerleşir
+   3. harfler sırayla yükselir, 4. alt çizgi soldan uzar, 5. altın kısımlarda kısa bir parıltı */
+@property --sweep { syntax: '<angle>'; inherits: false; initial-value: 360deg; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .is-building .bl-ringGrey,
+  .is-building .bl-ringGold {
+    -webkit-mask: conic-gradient(from var(--from) at var(--cx) var(--cy), #000 var(--sweep), transparent 0);
+    mask: conic-gradient(from var(--from) at var(--cx) var(--cy), #000 var(--sweep), transparent 0);
+    animation: bl-sweep var(--dur) cubic-bezier(0.65, 0, 0.35, 1) var(--delay) both;
+  }
+  .is-building .bl-ringGrey { --from: 128deg; --to: 225deg; --dur: 0.85s; --delay: 0.1s; }
+  .is-building .bl-ringGold { --from: 322deg; --to: 196deg; --dur: 0.8s; --delay: 0.7s; }
+
+  .is-building .bl-hook img { animation: bl-drop 0.5s cubic-bezier(0.3, 0.7, 0.2, 1) 0.55s both; }
+  .is-building .bl-bar1 img { animation: bl-wipe 0.45s cubic-bezier(0.3, 0.7, 0.2, 1) 0.95s both; }
+  .is-building .bl-bar2 img { animation: bl-wipe 0.45s cubic-bezier(0.3, 0.7, 0.2, 1) 1.1s both; }
+
+  .is-building .bl-letter { animation: bl-rise 0.6s cubic-bezier(0.2, 1.3, 0.35, 1) calc(1.35s + var(--i) * 0.075s) both; }
+  .is-building .bl-line img { animation: bl-wipe 0.7s cubic-bezier(0.65, 0, 0.35, 1) 2.05s both; }
+  .brand-logo.is-building { animation: bl-glint 0.9s ease 2.75s both; }
+}
+
+@keyframes bl-sweep { from { --sweep: 0deg; } to { --sweep: var(--to); } }
+@keyframes bl-drop { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@keyframes bl-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes bl-rise {
+  from { opacity: 0; transform: translateY(22%) scale(0.92); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes bl-glint { 0%, 100% { filter: none; } 45% { filter: brightness(1.45) saturate(1.15); } }
+
+/* ---------- Amblem birleşme animasyonu (giriş ekranı) ----------
+   Beş parça farklı yönlerden dönerek ve bulanık gelir, amblemin merkezinde yerine oturur; sonunda kısa bir parıltı. */
+@media (prefers-reduced-motion: no-preference) {
+  .is-assembling .bl-piece {
+    transform-origin: var(--cx) var(--cy);
+    animation: bl-fly 1.1s cubic-bezier(0.18, 1.25, 0.4, 1) var(--d) both;
+  }
+  .is-assembling .bl-ringGrey { --fx: -95%; --fy: 55%; --fr: -150deg; --fs: 0.6; --d: 0.1s; }
+  .is-assembling .bl-ringGold { --fx: 95%; --fy: -60%; --fr: 160deg; --fs: 0.6; --d: 0.25s; }
+  .is-assembling .bl-hook { --fx: 15%; --fy: 120%; --fr: 35deg; --fs: 0.8; --d: 0.45s; }
+  .is-assembling .bl-bar1 { --fx: -115%; --fy: -35%; --fr: -25deg; --fs: 1; --d: 0.6s; }
+  .is-assembling .bl-bar2 { --fx: 105%; --fy: 30%; --fr: 25deg; --fs: 1; --d: 0.72s; }
+  .brand-logo.is-assembling { animation: bl-settle 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 1.65s both, bl-glint 0.9s ease 1.9s both; }
+}
+@keyframes bl-fly {
+  0% { opacity: 0; transform: translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(var(--fs)); filter: blur(10px); }
+  35% { opacity: 1; }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes bl-settle { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); } }

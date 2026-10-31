@@ -1,0 +1,26 @@
+/* Ödeme takibi */
+.pay-stat { text-align: left; font: inherit; color: inherit; cursor: pointer; border: 0; }
+.pay-stat.hot { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 55%, transparent); }
+.stat b.warn { color: var(--warn); }
+.pay-total { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 19px !important; }
+
+.pay-table td { vertical-align: middle; }
+.pay-title { display: block; font-weight: 600; }
+.pay-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.pay-meta .tag { padding: 1px 7px; font-size: 11px; }
+.pay-table tr.is-awaiting td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+
+.pay-status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--fill); color: var(--text-2); }
+.pay-status.awaiting { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.pay-status.assigned { color: var(--blue); background: color-mix(in srgb, var(--blue) 15%, transparent); }
+.pay-status.paid { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.pay-status.cancelled { color: var(--muted); }
+
+.pay-amount { font: 700 26px/1.1 var(--font-display); letter-spacing: -0.02em; margin: 0 0 8px; font-variant-numeric: tabular-nums; }
+.pay-callout { display: grid; gap: 2px; padding: 10px 14px; margin: 10px 0 14px; border-radius: var(--r-md); background: color-mix(in srgb, var(--warn) 12%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+.pay-callout b { color: var(--warn); }
+.pay-callout span { font-size: 13px; color: var(--text-2); }
+.pay-hint { margin: 2px 0 10px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.drawer .muted { color: var(--muted); }
+.cal-item.payment { border-left-color: #e8833a; }
+.seg .nav-count { margin-left: 6px; }

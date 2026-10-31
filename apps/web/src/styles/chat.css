@@ -1,0 +1,160 @@
+/* Faz 5: mesajlaşma ve toplantı */
+.chat { display: grid; grid-template-columns: 320px 1fr; gap: 14px; height: calc(100vh - 110px); min-height: 420px; }
+/* Geniş ekranda sağ üstteki sabit araç çubuğu (60px + 14px) sohbet başlığını ve arama düğmelerini örtmesin. */
+@media (min-width: 1181px) { .chat { margin-top: 74px; height: calc(100vh - 184px); } }
+.chat-list, .chat-thread { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.chat-list { padding: 14px 10px; }
+.chat-list-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 10px; }
+.chat-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; margin: 0 4px 8px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); color: var(--muted); }
+.chat-search input { flex: 1; border: 0; background: none; outline: 0; min-width: 0; }
+.conv-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.conv { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; color: var(--text); padding: 10px; border-radius: 14px; cursor: pointer; font: inherit; text-align: left; }
+.conv:hover { background: var(--glass); }
+.conv.active { background: var(--glass-strong); }
+.conv-body { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.conv-top, .conv-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.conv-top b, .conv-bottom small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv.unread .conv-bottom small { color: var(--text); font-weight: 600; }
+.conv .nav-count { margin-left: auto; }
+
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.chat-call { display: flex; gap: 6px; flex: none; }
+.chat-call .btn { gap: 6px; }
+.chat-call .btn svg { color: var(--accent); }
+@media (max-width: 860px) { .chat-call .btn span { display: none; } .chat-call .btn.sm { width: 38px; padding: 0; justify-content: center; } }
+.chat-back { display: none; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; }
+.chat-empty { display: grid; place-items: center; }
+.empty.center { text-align: center; margin: auto; }
+.load-older { align-self: center; margin-bottom: 8px; }
+.day-sep { display: flex; justify-content: center; margin: 12px 0 6px; }
+.day-sep span { font-size: 11px; color: var(--muted); background: var(--glass-strong); padding: 3px 10px; border-radius: 999px; }
+.msg { display: flex; align-items: flex-end; gap: 4px; margin-top: 4px; }
+.msg.mine { flex-direction: row-reverse; }
+.bubble { max-width: min(70%, 560px); background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px 16px 16px 4px; padding: 7px 11px; display: flex; flex-direction: column; gap: 3px; }
+.msg.mine .bubble { background: color-mix(in srgb, var(--accent) 22%, var(--bg-2)); border-radius: 16px 16px 4px 16px; }
+.bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble a { color: var(--accent); }
+.msg-name { font-size: 12px; color: var(--accent); }
+.msg-meta { display: inline-flex; align-items: center; gap: 4px; align-self: flex-end; font-size: 11px; }
+.muted { color: var(--muted); }
+.msg-tools { display: flex; opacity: 0; transition: opacity 0.15s; }
+.msg:hover .msg-tools, .msg:focus-within .msg-tools { opacity: 1; }
+.msg-edit textarea { min-width: 220px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); }
+.msg-image { border: 0; padding: 0; background: none; cursor: zoom-in; }
+.msg-image img { display: block; max-width: 100%; max-height: 260px; border-radius: 10px; }
+.msg-file { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 10px; padding: 8px 10px; cursor: pointer; font: inherit; text-align: left; }
+.msg-file span { display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.chat-error { padding: 0 18px; }
+
+.composer { border-top: 1px solid var(--border); padding: 10px 12px; }
+.composer-row { display: flex; align-items: flex-end; gap: 8px; }
+.composer textarea { flex: 1; max-height: 140px; padding: 9px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg-2); resize: none; field-sizing: content; }
+.composer .send { padding: 10px 14px; }
+.composer-file { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 4px 4px 10px; margin-bottom: 8px; border-radius: 999px; background: var(--glass-strong); }
+
+.people { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; }
+.person { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; color: var(--text); padding: 8px; border-radius: 12px; font: inherit; text-align: left; }
+button.person { cursor: pointer; }
+button.person:hover { background: var(--glass); }
+.user-picker { display: flex; flex-direction: column; gap: 8px; }
+.user-picker input { padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-2); }
+.user-picker .chips { max-height: 180px; overflow-y: auto; }
+
+/* Toplantılar */
+.meeting-list { display: flex; flex-direction: column; gap: 10px; }
+.meeting-card { display: flex; align-items: center; gap: 16px; padding: 14px 18px; flex-wrap: wrap; }
+.meeting-card.focus { border-color: var(--accent); }
+.meeting-when { display: flex; align-items: center; gap: 10px; min-width: 190px; color: var(--accent); }
+.meeting-when span { display: flex; flex-direction: column; color: var(--text); }
+.meeting-info { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 4px; }
+.meeting-actions { display: flex; align-items: center; gap: 6px; }
+.cal-item.meeting { background: rgba(167, 139, 250, 0.18); }
+
+.meeting-room { position: fixed; inset: 0; z-index: 60; background: #0b0d12; color: #fff; display: flex; flex-direction: column; }
+.meeting-room-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: calc(14px + var(--sat)) 18px 14px; }
+.meeting-room-head small { color: #9aa3b2; }
+.meeting-warn { margin: 0 18px 8px; padding: 8px 12px; border-radius: 10px; background: rgba(251, 146, 60, 0.15); color: #fdba74; }
+.meeting-grid { flex: 1; display: grid; gap: 10px; padding: 0 18px; min-height: 0; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); grid-auto-rows: minmax(160px, 1fr); overflow-y: auto; }
+.meeting-grid.n1 { grid-template-columns: 1fr; }
+.tile { position: relative; background: #1a1e27; border-radius: 16px; overflow: hidden; display: grid; place-items: center; border: 2px solid transparent; }
+.tile.speaking { border-color: #34d399; }
+.tile.screen { grid-column: 1 / -1; }
+.tile video { width: 100%; height: 100%; object-fit: cover; }
+.tile.screen video { object-fit: contain; }
+.tile video.mirror { transform: scaleX(-1); }
+.tile-avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 600; background: var(--accent); }
+.tile-name { position: absolute; left: 10px; bottom: 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.55); }
+.meeting-controls { display: flex; justify-content: center; gap: 14px; padding: 16px 16px calc(16px + var(--sab)); }
+.round { width: 52px; height: 52px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; background: #2a303c; color: #fff; }
+.round:hover { background: #374050; }
+.round.off { background: #4b2a2a; color: #fca5a5; }
+.round.on { background: var(--accent); }
+.round.leave { background: #dc2626; }
+.round:disabled { opacity: 0.5; cursor: default; }
+
+@media (max-width: 860px) {
+  /* Sohbet ekrana oturur, sayfa kaymaz: üst çubuk (82px) ve alt sekme çubuğu (88px) dışındaki alan. */
+  .chat { grid-template-columns: 1fr; height: calc(var(--vvh, 100dvh) - 170px - var(--sat) - var(--sab)); min-height: 320px; }
+  /* Klavye açık (lib/keyboard.ts): alt sekme çubuğu gizli, sohbet klavyenin üstündeki alana sığar; yazma kutusu görünür kalır */
+  .kb-open .chat, html:has(.chat-thread textarea:focus) .chat { height: calc(var(--vvh, 100dvh) - 90px - var(--sat)); min-height: 0; }
+  .main:has(.chat), .content:has(> .chat) { padding-bottom: 0; }
+  .chat.has-active .chat-list, .chat:not(.has-active) .chat-thread { display: none; }
+  .chat-back { display: grid; }
+  .bubble { max-width: 85%; }
+  /* Düzenle/sil: mesaja dokununca açılır */
+  .msg-tools { display: none; opacity: 1; }
+  .msg.tools-open .msg-tools { display: flex; }
+  .meeting-grid { grid-template-columns: 1fr; padding: 0 10px; }
+}
+
+/* Toplantı yan paneli: kişisel not + toplantı görevleri (odada koyu, kartta modal içinde) */
+.meeting-body { flex: 1; display: flex; gap: 10px; min-height: 0; padding-right: 18px; }
+.meeting-body .meeting-grid { flex: 1; padding-right: 0; }
+.meeting-room-side { width: 340px; flex: none; display: flex; min-height: 0; background: #151922; border-radius: 16px; padding: 14px; }
+.meeting-side { display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; }
+.meeting-side .seg { align-self: flex-start; }
+.meeting-side-hint { display: flex; align-items: center; gap: 5px; margin: 0; font-size: 12px; color: var(--muted); }
+.meeting-note { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+.meeting-note textarea { flex: 1; min-height: 240px; resize: vertical; font: inherit; line-height: 1.5; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--fill); color: var(--text); }
+.meeting-tasks { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; }
+.meeting-tasks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.meeting-tasks li { display: flex; gap: 8px; align-items: flex-start; }
+.meeting-tasks li > svg { flex: none; margin-top: 2px; color: var(--muted); }
+.meeting-tasks li > svg.done { color: var(--ok); }
+.meeting-tasks li span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.meeting-tasks li a { color: inherit; font-weight: 600; text-decoration: none; }
+.meeting-tasks li a:hover { text-decoration: underline; }
+.meeting-tasks li small { color: var(--muted); }
+.meeting-tasks .btn { align-self: flex-start; }
+.meeting-side.dark { color: #fff; }
+.meeting-side.dark .seg { background: #232936; }
+.meeting-side.dark .seg button { color: #9aa3b2; }
+.meeting-side.dark .seg button.on { color: #fff; background: #374050; box-shadow: none; }
+.meeting-side.dark .meeting-side-hint, .meeting-side.dark small, .meeting-side.dark .empty { color: #9aa3b2; }
+.meeting-side.dark textarea, .meeting-side.dark input, .meeting-side.dark select { background: #0f1218; color: #fff; border: 1px solid #2a303c; }
+.meeting-side.dark label { color: #c4cad6; }
+
+@media (max-width: 860px) {
+  .meeting-body { flex-direction: column; padding: 0 10px; }
+  .meeting-body .meeting-grid { padding: 0; }
+  .meeting-room-side { width: auto; max-height: 55vh; }
+}
+
+/* WebRTC arama: gelen arama kartı, bilgi mesajı */
+.glass.incoming-call { position: fixed; right: 20px; bottom: 20px; z-index: 70; display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--r-xl); box-shadow: var(--shadow-lift); max-width: calc(100vw - 32px); }
+.incoming-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.incoming-info small { color: var(--muted); }
+.incoming-actions { display: flex; gap: 10px; margin-left: 8px; }
+.incoming-call .avatar.lg { width: 52px; height: 52px; font-size: 18px; flex: none; }
+.avatar.ringing { animation: call-pulse 1.2s ease-out infinite; }
+@keyframes call-pulse { 0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); } 100% { box-shadow: 0 0 0 16px rgba(52, 211, 153, 0); } }
+.round.accept { background: #16a34a; }
+.round.accept:hover { background: #15803d; }
+.call-notice { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 70; padding: 10px 18px; border-radius: 999px; background: rgba(15, 18, 24, 0.9); color: #fff; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .avatar.ringing { animation: none; } }
+@media (max-width: 860px) {
+  .glass.incoming-call { background: var(--glass-float); backdrop-filter: var(--float-blur); -webkit-backdrop-filter: var(--float-blur); left: 16px; right: 16px; bottom: calc(76px + var(--sab)); flex-wrap: wrap; justify-content: center; }
+  .incoming-actions { margin-left: 0; }
+  .call-notice { bottom: calc(84px + var(--sab)); }
+}

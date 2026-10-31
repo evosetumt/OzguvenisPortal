@@ -1,0 +1,54 @@
+/* Faz 2: Netsis (sipariş, teklif, cari) ekranları */
+.table .num, .table th.num { text-align: right; white-space: nowrap; }
+.table.static tbody tr { cursor: default; }
+.table.static tbody tr:hover { background: none; }
+.toolbar .date-range { display: inline-flex; align-items: center; gap: 6px; }
+.toolbar .date-range input { padding: 6px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-2); }
+
+.erp-status { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--glass-strong); color: var(--muted); white-space: nowrap; }
+.erp-status.open { color: var(--accent); background: rgba(59, 130, 246, 0.15); }
+.erp-status.partial { color: var(--warn); background: rgba(251, 146, 60, 0.15); }
+.erp-status.shipped { color: var(--ok); background: rgba(52, 211, 153, 0.15); }
+.erp-status.closed { color: var(--muted); }
+.erp-run.ok { color: var(--ok); }
+.erp-run.failed { color: var(--danger); }
+.erp-run.running { color: var(--warn); }
+.erp-error { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--danger); font-size: 12px; }
+.erp-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 860px) { .panel h3:has(.erp-actions) { flex-wrap: wrap; } .erp-actions { margin-left: 0; } }
+.spin { animation: erp-spin 1s linear infinite; }
+@keyframes erp-spin { to { transform: rotate(360deg); } }
+
+.progress.ship { min-width: 90px; }
+.customer-link { color: var(--text); text-decoration: none; }
+.customer-link:hover span { text-decoration: underline; }
+.erp-props { margin-bottom: 8px; grid-template-columns: 110px 1fr; }
+.erp-props a { color: var(--accent); }
+.erp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.erp-grid h3 .push { font-weight: 700; }
+.erp-drawer { width: min(760px, 100%); }
+.erp-drawer .stats .stat b { font-size: 18px; }
+.statement .opening td { color: var(--muted); font-style: italic; }
+.erp-debit { color: var(--warn); }
+.erp-credit { color: var(--ok); }
+.tag.erp-done { color: var(--ok); background: rgba(52, 211, 153, 0.15); }
+.customer-picker { display: flex; flex-direction: column; gap: 4px; }
+.customer-picker input { width: 100%; }
+
+/* Takvimde Netsis öğeleri */
+.cal-item.order { border-left-color: #a78bfa; background: transparent; }
+.cal-item.shipment { border-left-color: #22d3ee; background: transparent; }
+
+@media (max-width: 820px) {
+  .toolbar .date-range { width: 100%; }
+}
+
+/* e-Belge önizleme (cari ekstresi → fatura) */
+.edoc-link { font-size: inherit; padding: 0; gap: 4px; }
+.edoc { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.edoc-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.edoc-frame { width: 100%; height: min(75vh, 1000px); border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; }
+@media (max-width: 860px) { .edoc-frame { height: calc(100dvh - 240px); } }
+/* Fatura A4 genişliğinde basılır; önizleme penceresi buna göre geniş açılır */
+.modal.wide:has(.edoc) { width: min(1060px, calc(100vw - 32px)); max-width: none; }
+@media (max-width: 860px) { .modal.wide:has(.edoc) { width: 100%; padding: 12px; } }

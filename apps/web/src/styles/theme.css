@@ -1,0 +1,138 @@
+/*
+ * Tasarım belirteçleri (Pane tarzı cam arayüz). Koyu tema varsayılan, [data-theme=light] ile açık tema.
+ * Eski adlar (--muted, --bg-2, --border, --glass-strong ...) modül stilleri için korunur.
+ */
+:root {
+  /* Güvenli alan (çentik, durum/gezinme çubuğu). Android uygulamasında Capacitor değeri --safe-area-inset-* olarak verir. */
+  --sat: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+  --sab: max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, 'Segoe UI', system-ui, sans-serif;
+  --fs-title: clamp(34px, 2.2vw + 14px, 58px);
+  --r-xl: 30px;
+  --r-lg: 24px;
+  --r-md: 18px;
+  --gap: clamp(12px, 0.6vw + 8px, 20px);
+  --gutter: clamp(14px, 1.4vw + 6px, 32px);
+  --side-w: 252px;
+  --ease: cubic-bezier(0.22, 0.8, 0.24, 1);
+
+  /* koyu */
+  --wbg1: #232428;
+  --wbg2: #232428;
+  --text: #f5f5f7;
+  --text-2: rgba(235, 235, 245, 0.7);
+  --text-3: rgba(235, 235, 245, 0.55);
+  --glass: rgba(26, 26, 36, 0.42);
+  --glass-solid: #1c1c20;
+  --glass-thick: rgba(26, 26, 30, 0.86);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.35), 0 28px 56px -20px rgba(0, 0, 0, 0.8);
+  --av-ring: rgba(30, 32, 44, 0.95);
+  --glint: rgba(255, 255, 255, 0.13);
+  --ripple: rgba(255, 255, 255, 0.5);
+  --prio-urgent: #ff8b92; --prio-urgent-bg: rgba(217, 45, 58, 0.2);
+  --prio-high: #ffb27a; --prio-high-bg: rgba(242, 113, 28, 0.2);
+  --prio-normal: #8fb8ff; --prio-normal-bg: rgba(47, 124, 246, 0.18);
+  --rim-hi: rgba(255, 255, 255, 0.85);
+  --rim-mid: rgba(255, 255, 255, 0.45);
+  --rim-lo: rgba(255, 255, 255, 0.12);
+  --sheen: rgba(255, 255, 255, 0.1);
+  --depth: inset 0 1px 1px rgba(255, 255, 255, 0.3), inset 0 -1px 1px rgba(255, 255, 255, 0.1),
+    inset 3px 4px 12px -6px rgba(255, 255, 255, 0.24), inset -4px -6px 14px -8px rgba(255, 255, 255, 0.12),
+    inset 0 -16px 28px -18px rgba(0, 0, 0, 0.45);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 24px 48px -22px rgba(0, 0, 0, 0.75);
+  --fill: rgba(150, 150, 175, 0.16);
+  --fill-2: rgba(150, 150, 175, 0.26);
+  --fill-hover: rgba(150, 150, 175, 0.12);
+  --sep: rgba(255, 255, 255, 0.1);
+  --well: rgba(150, 150, 175, 0.16);
+  --lens: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+  --lens-glow: inset 0 1px 1px rgba(255, 255, 255, 0.55), inset 0 -2px 5px rgba(255, 255, 255, 0.12),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.3), 0 8px 18px -8px rgba(0, 0, 0, 0.6);
+  --gel-hi: rgba(255, 255, 255, 0.2);
+  --gel-lo: rgba(255, 255, 255, 0.07);
+  --gel-rim: rgba(255, 255, 255, 0.4);
+  --gel-edge: rgba(255, 255, 255, 0.16);
+
+  --accent: #1f6fe6;
+  --accent-ink: #7db4ff;
+  --accent-soft: rgba(31, 111, 230, 0.16);
+  --blue: #4b8eff;
+  --purple: #a07cff;
+  --pink: #f2649f;
+  --orange: #ff8a3d;
+  --green: #34c46b;
+  --teal: #22c3c0;
+  --danger: #ff5a64;
+  --up: #5fd88a;
+  --down: #ff8189;
+
+  /* eski adlar */
+  --bg: var(--wbg1);
+  --bg-2: var(--glass-solid);
+  /* Açılır yüzeyler (yan menü, menü sayfası, pencere, çekmece, açılır panel): okunaklı ama duvar kâğıdını/vurguyu hafifçe gösteren buzlu cam */
+  /* Duvar kâğıdının baskın tonuyla (--wall-tint, styles/appearance.css) karışır: koyu temada belirgin, açıkta hafif.
+     Yalnızca saydamlıkla koyu temada %80 koyu zemin duvar kâğıdını göstermiyor, menü siyah kalıyordu. */
+  --tint-amount: 32%;
+  --glass-float: color-mix(in srgb, color-mix(in srgb, var(--wall-tint, var(--glass-solid)) var(--tint-amount), var(--glass-solid)) 78%, transparent);
+  --float-blur: blur(30px) saturate(180%);
+  --muted: var(--text-2);
+  --glass-strong: var(--fill-2);
+  --border: var(--sep);
+  --accent-2: #1a5fc7;
+  --warn: var(--orange);
+  --ok: var(--green);
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --tint-amount: 18%;
+  --wbg1: #ececf0;
+  --wbg2: #e4e4e7;
+  --text: #0f1017;
+  --text-2: rgba(22, 24, 38, 0.7);
+  --text-3: rgba(22, 24, 38, 0.56);
+  --glass: rgba(255, 255, 255, 0.42);
+  --glass-solid: #f3f5fa;
+  --glass-thick: rgba(250, 252, 255, 0.86);
+  --shadow-lift: 0 2px 4px rgba(20, 28, 70, 0.08), 0 26px 50px -20px rgba(20, 28, 70, 0.42);
+  --av-ring: rgba(255, 255, 255, 0.9);
+  --glint: rgba(255, 255, 255, 0.34);
+  --ripple: rgba(255, 255, 255, 0.8);
+  --prio-urgent: #b0202c; --prio-urgent-bg: rgba(217, 45, 58, 0.14);
+  --prio-high: #9a4208; --prio-high-bg: rgba(242, 113, 28, 0.16);
+  --prio-normal: #1d55b8; --prio-normal-bg: rgba(47, 124, 246, 0.14);
+  --rim-hi: #fff;
+  --rim-mid: rgba(255, 255, 255, 0.78);
+  --rim-lo: rgba(255, 255, 255, 0.24);
+  --sheen: rgba(255, 255, 255, 0.34);
+  --depth: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -1px 1px rgba(255, 255, 255, 0.4),
+    inset 3px 4px 12px -6px rgba(255, 255, 255, 0.85), inset -4px -6px 14px -8px rgba(255, 255, 255, 0.55),
+    inset 0 -14px 26px -18px rgba(20, 40, 110, 0.2);
+  --shadow: 0 1px 2px rgba(16, 30, 90, 0.08), 0 22px 44px -22px rgba(16, 30, 90, 0.45);
+  --fill: rgba(118, 118, 140, 0.13);
+  --fill-2: rgba(118, 118, 140, 0.22);
+  --fill-hover: rgba(118, 118, 140, 0.1);
+  --sep: rgba(40, 40, 70, 0.12);
+  --well: rgba(118, 118, 140, 0.14);
+  --lens: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55));
+  --lens-glow: inset 0 1px 1px #fff, inset 0 -2px 5px rgba(255, 255, 255, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.9),
+    0 8px 18px -8px rgba(16, 40, 110, 0.4), 0 1px 2px rgba(16, 40, 110, 0.14);
+  --gel-hi: rgba(255, 255, 255, 0.72);
+  --gel-lo: rgba(255, 255, 255, 0.34);
+  --gel-rim: #fff;
+  --gel-edge: rgba(255, 255, 255, 0.7);
+  --accent: #2f7cf6;
+  --accent-ink: #1f63d6;
+  --accent-soft: rgba(47, 124, 246, 0.13);
+  --blue: #2f7cf6;
+  --purple: #8b5cf6;
+  --pink: #e9468f;
+  --orange: #f2711c;
+  --green: #22a559;
+  --teal: #0ea5a4;
+  --danger: #d92d3a;
+  --up: #13803a;
+  --down: #c02631;
+  --accent-2: #1f63d6;
+  color-scheme: light;
+}

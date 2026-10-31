@@ -1,0 +1,23 @@
+{
+  "name": "ozguvenis-portal",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "db:generate": "npm run prisma:generate -w apps/api",
+    "db:migrate": "npm run prisma:migrate -w apps/api",
+    "db:seed": "npm run prisma:seed -w apps/api",
+    "db:demo": "npm run db:demo -w apps/api --"
+  },
+  "allowScripts": {
+    "prisma@5.22.0": true,
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "esbuild@0.21.5": true
+  }
+}

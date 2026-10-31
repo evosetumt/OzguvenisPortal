@@ -1,0 +1,925 @@
+// Portal veritabanı şeması (SQL Server). Netsis veritabanından AYRIDIR.
+// Not: Prisma SQL Server enum ve Json tipini desteklemez; bu alanlar String olarak tutulur
+// ve uygulama tarafında doğrulanır (bkz. docs/PLAN.md Bölüm 5).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "sqlserver"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model Department {
+  id        Int          @id @default(autoincrement())
+  name      String       @db.NVarChar(120)
+  parentId  Int?
+  managerId Int?
+  parent    Department?  @relation("DeptTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  Department[] @relation("DeptTree")
+  manager   User?        @relation("DeptManager", fields: [managerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users     User[]       @relation("UserDept")
+  payments  Payment[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model User {
+  id                    Int                     @id @default(autoincrement())
+  email                 String                  @unique @db.NVarChar(190)
+  phone                 String?                 @db.NVarChar(30)
+  fullName              String                  @db.NVarChar(150)
+  avatarUrl             String?                 @db.NVarChar(400)
+  passwordHash          String                  @db.NVarChar(120)
+  status                String                  @default("active") @db.NVarChar(20) // active | disabled
+  departmentId          Int?
+  lastLoginAt           DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  deletedAt             DateTime?
+  department            Department?             @relation("UserDept", fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  managed               Department[]            @relation("DeptManager")
+  roles                 UserRole[]
+  auditLogs             AuditLog[]
+  ownedProjects         Project[]               @relation("ProjectOwner")
+  projectMembers        ProjectMember[]
+  assignedTasks         Task[]                  @relation("TaskAssignee")
+  createdTasks          Task[]                  @relation("TaskCreator")
+  taskComments          TaskComment[]
+  taskWatches           TaskWatcher[]
+  notifications         Notification[]
+  calendarEvents        CalendarEvent[]         @relation("EventOwner")
+  eventAttendances      CalendarEventAttendee[]
+  erpRepCode            String?                 @db.NVarChar(20) // Netsis plasiyer kodu (Faz 2 kapsam eşlemesi)
+  title                 String?                 @db.NVarChar(120) // unvan (örn. Satış Müdürü), yönetici girer
+  presence              String                  @default("online") @db.NVarChar(20) // online | focus | away | meeting (kullanıcı seçer)
+  presenceAt            DateTime?
+  uiPrefs               String?                 @db.NVarChar(400) // görünüm: {"theme":"auto","wallpaper":"gelgit","accent":"mor"} (JSON)
+  deviceTokens          DeviceToken[]
+  assignedPayments      Payment[]               @relation("PaymentAssignee")
+  paidPayments          Payment[]               @relation("PaymentPaidBy")
+  createdPayments       Payment[]               @relation("PaymentCreator")
+  notificationPrefs     UserNotificationPref[]
+  attachments           Attachment[]
+  expenses              Expense[]
+  expenseApprovals      ExpenseApproval[]
+  processDefinitions    ProcessDefinition[]
+  startedProcesses      ProcessInstance[]
+  assignedProcessTasks  ProcessTask[]           @relation("ProcessTaskAssignee")
+  completedProcessTasks ProcessTask[]           @relation("ProcessTaskCompleter")
+  assignedVehicles      Vehicle[]
+  trackedItems          TrackedItem[]
+  whatsappContacts      WhatsappContact[]
+  whatsappMessages      WhatsappMessage[]
+  conversationsCreated  Conversation[]
+  conversationMembers   ConversationMember[]
+  messages              Message[]
+  organizedMeetings     Meeting[]
+  meetingParticipations MeetingParticipant[]
+  messageRevisions      MessageRevision[]
+  meetingNotes          MeetingNote[]
+  startedCalls          Call[]                @relation("CallStarter")
+  callParticipations    CallParticipant[]
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique @db.NVarChar(80)
+  description String?          @db.NVarChar(300)
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id    Int              @id @default(autoincrement())
+  code  String           @unique @db.NVarChar(100) // modül.eylem, örn. task.read
+  label String?          @db.NVarChar(200)
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  scope        String     @default("own") @db.NVarChar(20) // all | department | own
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String   @db.NVarChar(80)
+  entity    String?  @db.NVarChar(80)
+  entityId  String?  @db.NVarChar(60)
+  diff      String?  @db.NVarChar(Max) // JSON metni
+  ip        String?  @db.NVarChar(60)
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Setting {
+  key   String @id @db.NVarChar(120)
+  value String @db.NVarChar(Max) // JSON metni
+}
+
+// ---------- M6 Görev takibi ----------
+
+model Project {
+  id        Int             @id @default(autoincrement())
+  name      String          @db.NVarChar(120)
+  color     String          @default("#3b82f6") @db.NVarChar(20)
+  ownerId   Int?
+  status    String          @default("active") @db.NVarChar(20) // active | archived
+  pinned    Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+  owner     User?           @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  members   ProjectMember[]
+  statuses  TaskStatus[]
+  tasks     Task[]
+}
+
+model ProjectMember {
+  projectId Int
+  userId    Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([projectId, userId])
+}
+
+/// Kanban kolonları. projectId boşsa tüm projelerde geçerli varsayılan kolondur.
+model TaskStatus {
+  id        Int      @id @default(autoincrement())
+  projectId Int?
+  name      String   @db.NVarChar(60)
+  sortOrder Int      @default(0)
+  isDone    Boolean  @default(false)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tasks     Task[]
+}
+
+model Task {
+  id              Int           @id @default(autoincrement())
+  projectId       Int?
+  statusId        Int
+  title           String        @db.NVarChar(250)
+  description     String?       @db.NVarChar(Max)
+  priority        String        @default("normal") @db.NVarChar(20) // low | normal | high | urgent
+  assigneeId      Int?
+  createdById     Int
+  dueDate         DateTime?
+  sortOrder       Int           @default(0)
+  taskType        String        @default("general") @db.NVarChar(20) // general | erp_order | erp_quote
+  customerRef     String?       @db.NVarChar(60) // Netsis cari kodu
+  erpDocNo        String?       @db.NVarChar(60)
+  completedViaErp Boolean       @default(false)
+  completedAt     DateTime?
+  relatedType     String?       @db.NVarChar(40)
+  relatedId       String?       @db.NVarChar(60)
+  reminderSentAt  DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  project         Project?      @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status          TaskStatus    @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignee        User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy       User          @relation("TaskCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subtasks        TaskSubtask[]
+  comments        TaskComment[]
+  watchers        TaskWatcher[]
+  payments        Payment[]
+
+  @@index([statusId, sortOrder])
+  @@index([assigneeId])
+  @@index([dueDate])
+}
+
+model TaskSubtask {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  title     String   @db.NVarChar(250)
+  done      Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model TaskComment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  userId    Int
+  body      String   @db.NVarChar(Max)
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model TaskWatcher {
+  taskId Int
+  userId Int
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([taskId, userId])
+}
+
+// ---------- M4 Bildirim ----------
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      String    @db.NVarChar(60) // olay kodu, örn. task.assigned
+  title     String    @db.NVarChar(200)
+  body      String?   @db.NVarChar(1000)
+  link      String?   @db.NVarChar(300) // arayüz yolu, örn. /tasks?id=5
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+// ---------- M8 Takvim ----------
+
+model CalendarEvent {
+  id          Int                     @id @default(autoincrement())
+  title       String                  @db.NVarChar(200)
+  description String?                 @db.NVarChar(2000)
+  location    String?                 @db.NVarChar(200)
+  startsAt    DateTime
+  endsAt      DateTime
+  allDay      Boolean                 @default(false)
+  visibility  String                  @default("private") @db.NVarChar(20) // private | department | company
+  sourceType  String?                 @db.NVarChar(40) // diğer modüllerden gelen olaylar için
+  sourceId    String?                 @db.NVarChar(60)
+  ownerId     Int
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  deletedAt   DateTime?
+  owner       User                    @relation("EventOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attendees   CalendarEventAttendee[]
+
+  @@index([startsAt])
+}
+
+model CalendarEventAttendee {
+  eventId Int
+  userId  Int
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([eventId, userId])
+}
+
+model NotificationRule {
+  id        Int      @id @default(autoincrement())
+  eventCode String   @unique @db.NVarChar(60)
+  label     String   @db.NVarChar(150)
+  channels  String   @default("inapp") @db.NVarChar(100) // virgüllü: inapp,push,email,whatsapp
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationDelivery {
+  id             Int      @id @default(autoincrement())
+  notificationId Int?
+  userId         Int
+  channel        String   @db.NVarChar(20) // push | email | whatsapp
+  status         String   @db.NVarChar(20) // sent | failed | skipped
+  error          String?  @db.NVarChar(1000)
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Push hedefleri. web: Web Push abonelik JSON metni; android/ios: FCM kayıt jetonu.
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  platform   String   @db.NVarChar(20) // web | android | ios
+  token      String   @db.NVarChar(Max)
+  tokenHash  String   @unique @db.NVarChar(64)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Kullanıcının olay bazında seçtiği kanallar (kayıt yoksa kuralın kanalları geçerli).
+model UserNotificationPref {
+  userId    Int
+  eventCode String @db.NVarChar(60)
+  channels  String @db.NVarChar(100) // virgüllü, boş = hiçbiri
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, eventCode])
+}
+
+// ---------- Ortak: dosyalar ----------
+
+model Attachment {
+  id               Int                     @id @default(autoincrement())
+  storageKey       String                  @unique @db.NVarChar(200)
+  fileName         String                  @db.NVarChar(255)
+  mime             String                  @db.NVarChar(120)
+  size             Int
+  uploadedById     Int
+  createdAt        DateTime                @default(now())
+  uploadedBy       User                    @relation(fields: [uploadedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  expenseReceipts  ExpenseReceipt[]
+  trackedItemFiles TrackedItemAttachment[]
+  messages         Message[]
+}
+
+// ---------- M2/M3 Netsis önbelleği (kaynak Netsis, portal yalnızca okur) ----------
+
+model ErpCustomer {
+  code         String    @id @db.NVarChar(35) // CARI_KOD
+  name         String    @db.NVarChar(200)
+  type         String?   @db.NVarChar(5) // CARI_TIP: A alıcı, S satıcı ...
+  taxOffice    String?   @db.NVarChar(100)
+  taxNo        String?   @db.NVarChar(30)
+  phone        String?   @db.NVarChar(40)
+  email        String?   @db.NVarChar(150)
+  city         String?   @db.NVarChar(60)
+  address      String?   @db.NVarChar(400)
+  repCode      String?   @db.NVarChar(20) // PLASIYER_KODU
+  debit        Decimal   @default(0) @db.Decimal(18, 2)
+  credit       Decimal   @default(0) @db.Decimal(18, 2)
+  balance      Decimal   @default(0) @db.Decimal(18, 2) // borç - alacak
+  erpUpdatedAt DateTime?
+  syncedAt     DateTime  @default(now())
+
+  @@index([name])
+  @@index([repCode])
+}
+
+model ErpAccountTx {
+  id           Int       @id // TBLCAHAR.INC_KEY_NUMBER
+  customerCode String    @db.NVarChar(35)
+  date         DateTime
+  dueDate      DateTime?
+  docNo        String?   @db.NVarChar(30)
+  description  String?   @db.NVarChar(200)
+  txType       String?   @db.NVarChar(5) // HAREKET_TURU
+  debit        Decimal   @default(0) @db.Decimal(18, 2)
+  credit       Decimal   @default(0) @db.Decimal(18, 2)
+  repCode      String?   @db.NVarChar(20)
+  syncedAt     DateTime  @default(now())
+
+  @@index([customerCode, date])
+}
+
+model ErpOrder {
+  id           Int            @id @default(autoincrement())
+  kind         String         @db.NVarChar(10) // sales (FTIRSIP 6) | purchase (7)
+  docNo        String         @db.NVarChar(30)
+  customerCode String         @db.NVarChar(35)
+  date         DateTime
+  dueDate      DateTime?
+  description  String?        @db.NVarChar(200)
+  gross        Decimal        @default(0) @db.Decimal(18, 2)
+  vat          Decimal        @default(0) @db.Decimal(18, 2)
+  total        Decimal        @default(0) @db.Decimal(18, 2)
+  currency     String         @default("TRY") @db.NVarChar(10)
+  repCode      String?        @db.NVarChar(20)
+  status       String         @default("open") @db.NVarChar(20) // open | partial | shipped | closed
+  totalQty     Decimal        @default(0) @db.Decimal(18, 3)
+  shippedQty   Decimal        @default(0) @db.Decimal(18, 3)
+  erpCreatedAt DateTime?
+  erpUpdatedAt DateTime?
+  syncedAt     DateTime       @default(now())
+  items        ErpOrderItem[]
+
+  @@unique([kind, docNo])
+  @@index([customerCode])
+  @@index([date])
+}
+
+model ErpOrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  lineNo     Int
+  stockCode  String   @db.NVarChar(40)
+  stockName  String?  @db.NVarChar(200)
+  qty        Decimal  @db.Decimal(18, 3)
+  shippedQty Decimal  @default(0) @db.Decimal(18, 3)
+  unit       String?  @db.NVarChar(20)
+  unitPrice  Decimal  @db.Decimal(18, 4)
+  vatRate    Decimal  @default(0) @db.Decimal(6, 2)
+  order      ErpOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model ErpQuote {
+  id           Int            @id @default(autoincrement())
+  docNo        String         @unique @db.NVarChar(30)
+  customerCode String         @db.NVarChar(35)
+  date         DateTime
+  validUntil   DateTime?
+  description  String?        @db.NVarChar(200)
+  gross        Decimal        @default(0) @db.Decimal(18, 2)
+  vat          Decimal        @default(0) @db.Decimal(18, 2)
+  total        Decimal        @default(0) @db.Decimal(18, 2)
+  currency     String         @default("TRY") @db.NVarChar(10)
+  repCode      String?        @db.NVarChar(20)
+  status       String         @default("open") @db.NVarChar(20) // open | closed
+  erpCreatedAt DateTime?
+  erpUpdatedAt DateTime?
+  syncedAt     DateTime       @default(now())
+  items        ErpQuoteItem[]
+
+  @@index([customerCode])
+  @@index([date])
+}
+
+model ErpQuoteItem {
+  id        Int      @id @default(autoincrement())
+  quoteId   Int
+  lineNo    Int
+  stockCode String   @db.NVarChar(40)
+  stockName String?  @db.NVarChar(200)
+  qty       Decimal  @db.Decimal(18, 3)
+  unit      String?  @db.NVarChar(20)
+  unitPrice Decimal  @db.Decimal(18, 4)
+  vatRate   Decimal  @default(0) @db.Decimal(6, 2)
+  quote     ErpQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+/// Sevk belgeleri: satış irsaliyesi / faturası, sipariş numaralarıyla eşlenmiş.
+model ErpShipment {
+  id           Int       @id @default(autoincrement())
+  docType      String    @db.NVarChar(10) // waybill | invoice
+  docNo        String    @db.NVarChar(30)
+  customerCode String    @db.NVarChar(35)
+  date         DateTime
+  orderNos     String?   @db.NVarChar(500) // virgüllü sipariş numaraları
+  total        Decimal   @default(0) @db.Decimal(18, 2)
+  repCode      String?   @db.NVarChar(20)
+  erpCreatedAt DateTime?
+  syncedAt     DateTime  @default(now())
+
+  @@unique([docType, docNo])
+  @@index([customerCode])
+  @@index([date])
+}
+
+model ErpSyncRun {
+  id         Int       @id @default(autoincrement())
+  entity     String    @db.NVarChar(40)
+  trigger    String    @default("schedule") @db.NVarChar(20) // schedule | manual
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    @default("running") @db.NVarChar(20) // running | ok | failed
+  rows       Int       @default(0)
+  error      String?   @db.NVarChar(2000)
+
+  @@index([startedAt])
+}
+
+model ErpSyncState {
+  entity    String   @id @db.NVarChar(40)
+  cursor    String?  @db.NVarChar(60)
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- M9 Masraf ----------
+
+model ExpenseCategory {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.NVarChar(80)
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  expenses  Expense[]
+}
+
+model Expense {
+  id                Int               @id @default(autoincrement())
+  userId            Int
+  categoryId        Int
+  amount            Decimal           @db.Decimal(18, 2)
+  currency          String            @default("TRY") @db.NVarChar(10)
+  amountTry         Decimal           @db.Decimal(18, 2) // TL karşılığı; onay eşiği bununla karşılaştırılır
+  expenseDate       DateTime
+  description       String            @db.NVarChar(500)
+  status            String            @default("draft") @db.NVarChar(30) // draft | submitted | manager_approved | accounting_approved | rejected | paid
+  processInstanceId Int?
+  submittedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  user              User              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  category          ExpenseCategory   @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receipts          ExpenseReceipt[]
+  approvals         ExpenseApproval[]
+
+  @@index([userId, status])
+  @@index([status])
+}
+
+model ExpenseReceipt {
+  expenseId    Int
+  attachmentId Int
+  expense      Expense    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([expenseId, attachmentId])
+}
+
+model ExpenseApproval {
+  id         Int      @id @default(autoincrement())
+  expenseId  Int
+  step       String   @db.NVarChar(20) // auto | manager | accounting | payment
+  approverId Int?
+  decision   String   @db.NVarChar(20) // approved | rejected | paid
+  comment    String?  @db.NVarChar(1000)
+  at         DateTime @default(now())
+  expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  approver   User?    @relation(fields: [approverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([expenseId])
+}
+
+// ---------- M11 İş akışı (BPMN) ----------
+
+model ProcessDefinition {
+  id          Int               @id @default(autoincrement())
+  key         String            @db.NVarChar(80) // örn. expense_approval
+  name        String            @db.NVarChar(150)
+  version     Int               @default(1)
+  bpmnXml     String            @db.NVarChar(Max)
+  status      String            @default("draft") @db.NVarChar(20) // draft | active | archived
+  createdById Int?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   User?             @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  instances   ProcessInstance[]
+
+  @@unique([key, version])
+}
+
+model ProcessInstance {
+  id           Int               @id @default(autoincrement())
+  definitionId Int
+  businessKey  String?           @db.NVarChar(80)
+  entityType   String?           @db.NVarChar(40) // örn. expense
+  entityId     String?           @db.NVarChar(60)
+  status       String            @default("running") @db.NVarChar(20) // running | completed | failed | cancelled
+  startedById  Int?
+  startedAt    DateTime          @default(now())
+  endedAt      DateTime?
+  variables    String            @default("{}") @db.NVarChar(Max) // JSON
+  error        String?           @db.NVarChar(2000)
+  definition   ProcessDefinition @relation(fields: [definitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  startedBy    User?             @relation(fields: [startedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tasks        ProcessTask[]
+  events       ProcessEvent[]
+
+  @@index([entityType, entityId])
+  @@index([status])
+}
+
+model ProcessTask {
+  id              Int             @id @default(autoincrement())
+  instanceId      Int
+  elementId       String          @db.NVarChar(100)
+  name            String          @db.NVarChar(200)
+  assigneeId      Int?
+  candidateRole   String?         @db.NVarChar(80) // rol adı (örn. Muhasebe)
+  candidateDeptId Int? // departman adayı: o birimdeki herkes görür ve karar verebilir
+  taskId          Int? // Görevler listesine yansıyan portal görevi
+  status          String          @default("open") @db.NVarChar(20) // open | completed | cancelled
+  dueAt           DateTime?
+  reminderSentAt  DateTime?
+  completedById   Int?
+  completedAt     DateTime?
+  formData        String?         @db.NVarChar(Max) // JSON: {decision, comment}
+  createdAt       DateTime        @default(now())
+  instance        ProcessInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  assignee        User?           @relation("ProcessTaskAssignee", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  completedBy     User?           @relation("ProcessTaskCompleter", fields: [completedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status, assigneeId])
+  @@index([status, candidateRole])
+}
+
+model ProcessEvent {
+  id         Int             @id @default(autoincrement())
+  instanceId Int
+  elementId  String?         @db.NVarChar(100)
+  type       String          @db.NVarChar(40) // started | entered | completed | task_created | task_completed | error | ended
+  at         DateTime        @default(now())
+  payload    String?         @db.NVarChar(Max)
+  instance   ProcessInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, at])
+}
+
+// ---------- M7 Abonelik ve süre takibi ----------
+
+model Vehicle {
+  id             Int              @id @default(autoincrement())
+  plate          String           @unique @db.NVarChar(20)
+  brandModel     String?          @db.NVarChar(120)
+  year           Int?
+  assignedUserId Int?
+  km             Int?
+  notes          String?          @db.NVarChar(1000)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+  assignedUser   User?            @relation(fields: [assignedUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  services       VehicleService[]
+  trackedItems   TrackedItem[]
+}
+
+model VehicleService {
+  id          Int       @id @default(autoincrement())
+  vehicleId   Int
+  type        String    @db.NVarChar(60) // periyodik bakım, lastik, onarım ...
+  date        DateTime
+  km          Int?
+  cost        Decimal?  @db.Decimal(18, 2)
+  nextDueDate DateTime?
+  nextDueKm   Int?
+  notes       String?   @db.NVarChar(1000)
+  createdAt   DateTime  @default(now())
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model TrackedItem {
+  id            Int                     @id @default(autoincrement())
+  category      String                  @db.NVarChar(30) // insurance | vehicle_inspection | vehicle_maintenance | commitment | contract | rent | other
+  title         String                  @db.NVarChar(200)
+  counterparty  String?                 @db.NVarChar(200)
+  vehicleId     Int?
+  startDate     DateTime?
+  endDate       DateTime
+  amount        Decimal?                @db.Decimal(18, 2)
+  currency      String                  @default("TRY") @db.NVarChar(10)
+  renewalPeriod String?                 @db.NVarChar(20) // none | monthly | yearly ...
+  ownerId       Int
+  status        String                  @default("active") @db.NVarChar(20) // active | renewed | cancelled | expired
+  reminderDays  String                  @default("60,30,7,1") @db.NVarChar(60)
+  notifyUserIds String?                 @db.NVarChar(200) // ek alıcılar, virgüllü
+  notes         String?                 @db.NVarChar(2000)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  deletedAt     DateTime?
+  vehicle       Vehicle?                @relation(fields: [vehicleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  owner         User                    @relation(fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reminders     TrackedItemReminder[]
+  files         TrackedItemAttachment[]
+
+  @@index([endDate])
+}
+
+/// Gönderilen hatırlatma kaydı: aynı bitiş tarihi ve gün eşiği için ikinci kez gönderilmez.
+model TrackedItemReminder {
+  id            Int         @id @default(autoincrement())
+  trackedItemId Int
+  daysBefore    Int
+  forEndDate    DateTime
+  sentAt        DateTime    @default(now())
+  trackedItem   TrackedItem @relation(fields: [trackedItemId], references: [id], onDelete: Cascade)
+
+  @@unique([trackedItemId, daysBefore, forEndDate])
+}
+
+model TrackedItemAttachment {
+  trackedItemId Int
+  attachmentId  Int
+  trackedItem   TrackedItem @relation(fields: [trackedItemId], references: [id], onDelete: Cascade)
+  attachment    Attachment  @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([trackedItemId, attachmentId])
+}
+
+// ---------- M10 WhatsApp Business ----------
+
+model WhatsappContact {
+  id           Int               @id @default(autoincrement())
+  phone        String            @unique @db.NVarChar(20) // uluslararası biçim, + olmadan: 905xxxxxxxxx
+  name         String            @db.NVarChar(150)
+  customerCode String?           @db.NVarChar(35)
+  userId       Int?
+  optInAt      DateTime?
+  optOutAt     DateTime?
+  createdAt    DateTime          @default(now())
+  user         User?             @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  messages     WhatsappMessage[]
+}
+
+model WhatsappMessage {
+  id            Int             @id @default(autoincrement())
+  direction     String          @db.NVarChar(5) // out | in
+  contactId     Int
+  templateName  String?         @db.NVarChar(120)
+  body          String?         @db.NVarChar(Max)
+  status        String          @default("queued") @db.NVarChar(20) // queued | sent | delivered | read | failed | received
+  providerMsgId String?         @db.NVarChar(120)
+  error         String?         @db.NVarChar(1000)
+  createdById   Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  contact       WhatsappContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy     User?           @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([providerMsgId])
+  @@index([contactId, createdAt])
+}
+
+// ---------- M5 Mesajlaşma ve toplantı ----------
+
+model Conversation {
+  id            Int                  @id @default(autoincrement())
+  type          String               @db.NVarChar(10) // direct | group
+  title         String?              @db.NVarChar(150)
+  directKey     String?              @db.NVarChar(40) // birebir sohbet: "küçükId:büyükId" (tekillik kodda denetlenir)
+  createdById   Int
+  lastMessageAt DateTime?
+  createdAt     DateTime             @default(now())
+  createdBy     User                 @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  members       ConversationMember[]
+  messages      Message[]
+  meetings      Meeting[]
+  calls         Call[]
+
+  @@index([directKey])
+}
+
+model ConversationMember {
+  conversationId    Int
+  userId            Int
+  lastReadMessageId Int?
+  joinedAt          DateTime     @default(now())
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  senderId       Int
+  body           String       @db.NVarChar(Max)
+  attachmentId   Int?
+  callId         Int? // arama özeti mesajı ("Sesli arama · 3 dk", "Cevapsız arama")
+  createdAt      DateTime     @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  call           Call?        @relation(fields: [callId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attachment     Attachment?  @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  revisions      MessageRevision[]
+
+  @@index([conversationId, id])
+}
+
+/// Mesaj düzenlenmeden önceki metin; yönetici sohbet arşivinde görür.
+model MessageRevision {
+  id         Int      @id @default(autoincrement())
+  messageId  Int
+  body       String   @db.NVarChar(Max)
+  editedById Int
+  createdAt  DateTime @default(now())
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  editedBy   User     @relation(fields: [editedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([messageId])
+}
+
+model Meeting {
+  id              Int                  @id @default(autoincrement())
+  title           String               @db.NVarChar(200)
+  roomName        String               @unique @db.NVarChar(80)
+  startsAt        DateTime
+  endsAt          DateTime
+  organizerId     Int
+  calendarEventId Int?
+  conversationId  Int?
+  createdAt       DateTime             @default(now())
+  deletedAt       DateTime?
+  organizer       User                 @relation(fields: [organizerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversation    Conversation?        @relation(fields: [conversationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  participants    MeetingParticipant[]
+  notes           MeetingNote[]
+  calls           Call[]
+
+  @@index([startsAt])
+}
+
+/// WebRTC (eşler arası) arama: sohbetten sesli/görüntülü arama veya toplantının canlı oturumu.
+model Call {
+  id             Int               @id @default(autoincrement())
+  kind           String            @db.NVarChar(10) // audio | video
+  status         String            @default("ringing") @db.NVarChar(12) // ringing | active | ended | missed | declined | cancelled
+  conversationId Int?
+  meetingId      Int?
+  startedById    Int
+  createdAt      DateTime          @default(now())
+  answeredAt     DateTime?
+  endedAt        DateTime?
+  conversation   Conversation?     @relation(fields: [conversationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  meeting        Meeting?          @relation(fields: [meetingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  startedBy      User              @relation("CallStarter", fields: [startedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  participants   CallParticipant[]
+  messages       Message[]
+
+  @@index([conversationId, status])
+  @@index([meetingId, status])
+}
+
+/// Aramaya kim çağrıldı, kim ne zaman katıldı/ayrıldı (toplantı katılım geçmişi de buradan).
+model CallParticipant {
+  callId   Int
+  userId   Int
+  state    String    @default("ringing") @db.NVarChar(10) // ringing | joined | left | declined | missed
+  joinedAt DateTime?
+  leftAt   DateTime?
+  call     Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([callId, userId])
+  @@index([userId, state])
+}
+
+/// Kişiye özel toplantı notu (toplantı başına kişi başı bir not; yalnızca sahibi görür).
+model MeetingNote {
+  id        Int      @id @default(autoincrement())
+  meetingId Int
+  userId    Int
+  body      String   @db.NVarChar(Max)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([meetingId, userId])
+}
+
+model MeetingParticipant {
+  meetingId Int
+  userId    Int
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([meetingId, userId])
+}
+
+// ---------- Ödeme takibi (çek, kurumsal kredi kartı, kredi taksiti, vergi/SGK ...) ----------
+
+/// Vadesi yaklaşan ödeme. Vadeden leadDays gün önce (boşsa payment.defaultLeadDays ayarı) birim yöneticisine görev açılır;
+/// yönetici görevi istediği kişiye devreder. Görev tamamlanınca ödeme "ödendi" olur, tekrarlıysa bir sonraki vade oluşturulur.
+model Payment {
+  id           Int        @id @default(autoincrement())
+  type         String     @db.NVarChar(20) // cheque | credit_card | loan | tax | sgk | rent | invoice | other
+  title        String     @db.NVarChar(200)
+  counterparty String?    @db.NVarChar(200) // banka / firma
+  docNo        String?    @db.NVarChar(60) // çek no, kart son 4 hane, sözleşme no
+  amount       Decimal    @db.Decimal(18, 2)
+  currency     String     @default("TRY") @db.NVarChar(10)
+  dueDate      DateTime
+  departmentId Int
+  leadDays     Int?
+  recurrence   String     @default("none") @db.NVarChar(20) // none | monthly | quarterly | yearly
+  status       String     @default("planned") @db.NVarChar(20) // planned | awaiting | assigned | paid | cancelled
+  taskId       Int?
+  assigneeId   Int?
+  taskOpenedAt DateTime?
+  paidAt       DateTime?
+  paidById     Int?
+  previousId   Int? // tekrarlı ödemede bir önceki vade
+  notes        String?    @db.NVarChar(2000)
+  createdById  Int
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task         Task?      @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignee     User?      @relation("PaymentAssignee", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paidBy       User?      @relation("PaymentPaidBy", fields: [paidById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy    User       @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status, dueDate])
+  @@index([departmentId])
+  @@index([taskId])
+}

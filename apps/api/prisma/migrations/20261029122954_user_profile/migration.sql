@@ -1,0 +1,21 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[User] ADD [presence] NVARCHAR(20) NOT NULL CONSTRAINT [User_presence_df] DEFAULT 'online',
+[presenceAt] DATETIME2,
+[title] NVARCHAR(120);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

@@ -1,0 +1,194 @@
+/*
+ * Görünüm: duvar kâğıtları ve vurgu renkleri (lib/theme.ts → <html data-wallpaper data-accent data-theme>).
+ * Duvar kâğıdı --wall değişkenidir; herhangi bir öğeye data-wallpaper verilirse o öğede de tanımlanır
+ * (Ayarlar → Görünüm önizlemeleri). Hepsi CSS degradesi, resim dosyası yok.
+ */
+
+/* ---------- Duvar kâğıtları ---------- */
+:root, [data-wallpaper='duz'] { --wall: linear-gradient(135deg, var(--wbg1), var(--wbg2)); }
+
+/* Düz tonlar: koyu ve açık temada ayrı */
+[data-wallpaper='kul'] { --wall: linear-gradient(160deg, #2c2d33, #1b1c20); }
+[data-wallpaper='kum'] { --wall: linear-gradient(160deg, #3b3026, #1f1914); }
+[data-wallpaper='adacayi'] { --wall: linear-gradient(160deg, #27322b, #161c18); }
+[data-theme='light'][data-wallpaper='kul'], [data-theme='light'] [data-wallpaper='kul'] { --wall: linear-gradient(160deg, #ececf0, #dcdce2); }
+[data-theme='light'][data-wallpaper='kum'], [data-theme='light'] [data-wallpaper='kum'] { --wall: linear-gradient(160deg, #f3ebdf, #e4d5bf); }
+[data-theme='light'][data-wallpaper='adacayi'], [data-theme='light'] [data-wallpaper='adacayi'] { --wall: linear-gradient(160deg, #e6efe7, #d0dfd3); }
+
+/* Işıltılı: koyu zemin üzerinde yumuşak ışık lekeleri */
+[data-wallpaper='kutup'] {
+  --wall:
+    radial-gradient(70% 55% at 15% 20%, rgba(45, 212, 191, 0.38), transparent 70%),
+    radial-gradient(60% 50% at 85% 30%, rgba(99, 102, 241, 0.42), transparent 70%),
+    radial-gradient(70% 60% at 60% 95%, rgba(56, 189, 248, 0.3), transparent 70%),
+    linear-gradient(160deg, #0d1424, #0a0f1c);
+}
+[data-wallpaper='duman'] {
+  --wall:
+    radial-gradient(55% 45% at 20% 25%, rgba(255, 255, 255, 0.1), transparent 70%),
+    radial-gradient(60% 50% at 80% 70%, rgba(255, 255, 255, 0.08), transparent 70%),
+    radial-gradient(40% 35% at 55% 40%, rgba(160, 170, 190, 0.1), transparent 70%),
+    linear-gradient(160deg, #1d1e22, #121315);
+}
+[data-theme='light'][data-wallpaper='kutup'], [data-theme='light'] [data-wallpaper='kutup'] {
+  --wall:
+    radial-gradient(70% 55% at 15% 20%, rgba(45, 212, 191, 0.32), transparent 70%),
+    radial-gradient(60% 50% at 85% 30%, rgba(99, 102, 241, 0.28), transparent 70%),
+    radial-gradient(70% 60% at 60% 95%, rgba(56, 189, 248, 0.26), transparent 70%),
+    linear-gradient(160deg, #f1f5fc, #e6ecf7);
+}
+[data-theme='light'][data-wallpaper='duman'], [data-theme='light'] [data-wallpaper='duman'] {
+  --wall:
+    radial-gradient(55% 45% at 20% 25%, rgba(120, 125, 140, 0.16), transparent 70%),
+    radial-gradient(60% 50% at 80% 70%, rgba(120, 125, 140, 0.14), transparent 70%),
+    linear-gradient(160deg, #f4f4f6, #e7e7eb);
+}
+
+/* Renkli dalgalar: üst üste binen geniş elipslerle akış hissi; iki temada da aynı */
+[data-wallpaper='gelgit'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, #2563eb 0%, rgba(37, 99, 235, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, #06b6d4 0%, rgba(6, 182, 212, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, #7c3aed 0%, rgba(124, 58, 237, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(59, 130, 246, 0.55) 0%, rgba(59, 130, 246, 0) 70%),
+    linear-gradient(160deg, #0f1a4a, #1b0f45);
+}
+[data-wallpaper='cicek'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, #db2777 0%, rgba(219, 39, 119, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, #f97316 0%, rgba(249, 115, 22, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, #a855f7 0%, rgba(168, 85, 247, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(244, 114, 182, 0.5) 0%, rgba(244, 114, 182, 0) 70%),
+    linear-gradient(160deg, #3b0a35, #4a1022);
+}
+[data-wallpaper='kor'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, #ea580c 0%, rgba(234, 88, 12, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, #f59e0b 0%, rgba(245, 158, 11, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, #dc2626 0%, rgba(220, 38, 38, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(251, 146, 60, 0.5) 0%, rgba(251, 146, 60, 0) 70%),
+    linear-gradient(160deg, #3a0d07, #2a0f05);
+}
+[data-wallpaper='koru'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, #16a34a 0%, rgba(22, 163, 74, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, #14b8a6 0%, rgba(20, 184, 166, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, #65a30d 0%, rgba(101, 163, 13, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(52, 211, 153, 0.45) 0%, rgba(52, 211, 153, 0) 70%),
+    linear-gradient(160deg, #06291b, #0b2a26);
+}
+[data-wallpaper='alacakaranlik'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, #7c3aed 0%, rgba(124, 58, 237, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, #f59e0b 0%, rgba(245, 158, 11, 0) 50%),
+    radial-gradient(110% 70% at 85% -5%, #4338ca 0%, rgba(67, 56, 202, 0) 60%),
+    radial-gradient(70% 45% at 40% 45%, rgba(192, 132, 252, 0.4) 0%, rgba(192, 132, 252, 0) 70%),
+    linear-gradient(160deg, #1a1033, #2b1430);
+}
+
+/* Açık temada renkli duvar kâğıtları: zemin aydınlık (pastel), renk lekeleri canlı — üstteki cam kartlar saydamken koyu yazı okunur */
+[data-theme='light'][data-wallpaper='gelgit'], [data-theme='light'] [data-wallpaper='gelgit'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, rgba(37, 99, 235, 0.85) 0%, rgba(37, 99, 235, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, rgba(6, 182, 212, 0.8) 0%, rgba(6, 182, 212, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, rgba(124, 58, 237, 0.75) 0%, rgba(124, 58, 237, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(96, 165, 250, 0.5) 0%, rgba(96, 165, 250, 0) 70%),
+    linear-gradient(160deg, #e3ebff, #ece4ff);
+}
+[data-theme='light'][data-wallpaper='cicek'], [data-theme='light'] [data-wallpaper='cicek'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, rgba(219, 39, 119, 0.8) 0%, rgba(219, 39, 119, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, rgba(249, 115, 22, 0.75) 0%, rgba(249, 115, 22, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, rgba(168, 85, 247, 0.7) 0%, rgba(168, 85, 247, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(244, 114, 182, 0.45) 0%, rgba(244, 114, 182, 0) 70%),
+    linear-gradient(160deg, #fde7f1, #ffeee2);
+}
+[data-theme='light'][data-wallpaper='kor'], [data-theme='light'] [data-wallpaper='kor'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, rgba(234, 88, 12, 0.8) 0%, rgba(234, 88, 12, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, rgba(245, 158, 11, 0.8) 0%, rgba(245, 158, 11, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, rgba(220, 38, 38, 0.65) 0%, rgba(220, 38, 38, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(251, 146, 60, 0.45) 0%, rgba(251, 146, 60, 0) 70%),
+    linear-gradient(160deg, #fff0e3, #fff6dc);
+}
+[data-theme='light'][data-wallpaper='koru'], [data-theme='light'] [data-wallpaper='koru'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, rgba(22, 163, 74, 0.8) 0%, rgba(22, 163, 74, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, rgba(20, 184, 166, 0.8) 0%, rgba(20, 184, 166, 0) 55%),
+    radial-gradient(110% 70% at 85% -5%, rgba(101, 163, 13, 0.65) 0%, rgba(101, 163, 13, 0) 60%),
+    radial-gradient(70% 45% at 35% 40%, rgba(52, 211, 153, 0.45) 0%, rgba(52, 211, 153, 0) 70%),
+    linear-gradient(160deg, #e2f6ea, #def5f1);
+}
+[data-theme='light'][data-wallpaper='alacakaranlik'], [data-theme='light'] [data-wallpaper='alacakaranlik'] {
+  --wall:
+    radial-gradient(120% 70% at 0% 105%, rgba(124, 58, 237, 0.8) 0%, rgba(124, 58, 237, 0) 58%),
+    radial-gradient(90% 60% at 100% 100%, rgba(245, 158, 11, 0.75) 0%, rgba(245, 158, 11, 0) 50%),
+    radial-gradient(110% 70% at 85% -5%, rgba(67, 56, 202, 0.7) 0%, rgba(67, 56, 202, 0) 60%),
+    radial-gradient(70% 45% at 40% 45%, rgba(192, 132, 252, 0.4) 0%, rgba(192, 132, 252, 0) 70%),
+    linear-gradient(160deg, #ece6ff, #fbeee4);
+}
+
+/* Açık tema + renkli duvar kâğıdı: kartlar daha saydam, kenarı ve parlaması belirgin "cam" */
+:root[data-theme='light']:is([data-wallpaper='kutup'], [data-wallpaper='gelgit'], [data-wallpaper='cicek'], [data-wallpaper='kor'], [data-wallpaper='koru'], [data-wallpaper='alacakaranlik']) {
+  --glass: rgba(255, 255, 255, 0.24);
+  --sheen: rgba(255, 255, 255, 0.55);
+  --glint: rgba(255, 255, 255, 0.5);
+  --rim-lo: rgba(255, 255, 255, 0.45);
+  --fill: rgba(255, 255, 255, 0.32);
+  --fill-2: rgba(255, 255, 255, 0.46);
+  --fill-hover: rgba(255, 255, 255, 0.26);
+  --sep: rgba(255, 255, 255, 0.45);
+  --depth: inset 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  --text-2: rgba(16, 18, 32, 0.78);
+  --text-3: rgba(16, 18, 32, 0.62);
+}
+
+/* Baskın ton: açılır yüzeyler (yan menü, pencere, çekmece...) bu renge çalar (theme.css → --glass-float) */
+:root, [data-wallpaper='duz'] { --wall-tint: var(--glass-solid); }
+[data-wallpaper='kul'] { --wall-tint: #4a4b55; }
+[data-wallpaper='kum'] { --wall-tint: #8a6a45; }
+[data-wallpaper='adacayi'] { --wall-tint: #4f7058; }
+[data-wallpaper='kutup'] { --wall-tint: #1f6f8b; }
+[data-wallpaper='duman'] { --wall-tint: #5a5e68; }
+[data-wallpaper='gelgit'] { --wall-tint: #3346d6; }
+[data-wallpaper='cicek'] { --wall-tint: #b8306f; }
+[data-wallpaper='kor'] { --wall-tint: #c2470f; }
+[data-wallpaper='koru'] { --wall-tint: #168a47; }
+[data-wallpaper='alacakaranlik'] { --wall-tint: #6234c0; }
+
+/* ---------- Vurgu renkleri (varsayılan mavi: theme.css) ---------- */
+:root[data-accent='mor'] { --accent: #8b5cf6; --accent-2: #7c3aed; --accent-ink: #c4b5fd; --accent-soft: rgba(139, 92, 246, 0.18); }
+:root[data-accent='pembe'] { --accent: #e8457c; --accent-2: #d02f66; --accent-ink: #f9a8c4; --accent-soft: rgba(232, 69, 124, 0.18); }
+:root[data-accent='turuncu'] { --accent: #f2731c; --accent-2: #d9600d; --accent-ink: #fdba74; --accent-soft: rgba(242, 115, 28, 0.18); }
+:root[data-accent='yesil'] { --accent: #22a55a; --accent-2: #198a4a; --accent-ink: #86efac; --accent-soft: rgba(34, 165, 90, 0.18); }
+:root[data-accent='grafit'] { --accent: #6b7280; --accent-2: #4b5563; --accent-ink: #d1d5db; --accent-soft: rgba(107, 114, 128, 0.2); }
+:root[data-accent='altin'] { --accent: #b08d48; --accent-2: #967638; --accent-ink: #e4c98f; --accent-soft: rgba(176, 141, 72, 0.2); }
+/* Açık temada yazı rengi olarak kullanılan ton koyulaşır (okunabilirlik) */
+:root[data-theme='light'][data-accent='mor'] { --accent-ink: #6d28d9; --accent-soft: rgba(139, 92, 246, 0.13); }
+:root[data-theme='light'][data-accent='pembe'] { --accent-ink: #be185d; --accent-soft: rgba(232, 69, 124, 0.13); }
+:root[data-theme='light'][data-accent='turuncu'] { --accent-ink: #c2410c; --accent-soft: rgba(242, 115, 28, 0.13); }
+:root[data-theme='light'][data-accent='yesil'] { --accent-ink: #15803d; --accent-soft: rgba(34, 165, 90, 0.13); }
+:root[data-theme='light'][data-accent='grafit'] { --accent-ink: #374151; --accent-soft: rgba(107, 114, 128, 0.15); }
+:root[data-theme='light'][data-accent='altin'] { --accent-ink: #7c5f24; --accent-soft: rgba(176, 141, 72, 0.15); }
+
+/* ---------- Ayarlar → Görünüm ---------- */
+.appearance { display: flex; flex-direction: column; gap: 18px; }
+.appearance-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.appearance-row > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.appearance-row small, .appearance h4 + small { color: var(--muted); }
+.appearance h4 { margin: 0; font-size: 15px; }
+.walls { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px; margin-top: 10px; }
+.wall { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; }
+.wall-thumb { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; background: var(--wall); border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); overflow: hidden; }
+/* önizlemedeki küçük cam "pencereler" */
+.wall-thumb::before, .wall-thumb::after { content: ''; position: absolute; border-radius: 6px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.18); }
+.wall-thumb::before { left: 9%; top: 12%; width: 20%; height: 76%; }
+.wall-thumb::after { left: 36%; top: 12%; width: 55%; height: 34%; }
+[data-theme='light'] .wall-thumb::before, [data-theme='light'] .wall-thumb::after { background: rgba(255, 255, 255, 0.45); border-color: rgba(0, 0, 0, 0.06); }
+.wall.on .wall-thumb { border-color: var(--accent); }
+.wall.on { color: var(--text); }
+.wall-check { position: absolute; right: 7px; bottom: 7px; z-index: 1; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; }
+.accents { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.accent-dot { width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+.accent-dot.on { outline: 2px solid var(--text); outline-offset: 3px; }
+@media (max-width: 860px) { .walls { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } }

@@ -1,0 +1,18 @@
+node_modules
+dist
+.env
+*.log
+.DS_Store
+apps/web/dist
+uploads
+apps/api/.dist-*
+apps/web/.cert
+# Firebase hizmet hesabı (gizli anahtar)
+*-firebase-adminsdk-*.json
+# Yerel ortam / gizli dosyalar
+.env.mobile
+*.pfx
+*.p12
+*.jks
+*.keystore
+__MACOSX
