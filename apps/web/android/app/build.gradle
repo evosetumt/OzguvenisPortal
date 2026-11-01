@@ -4,7 +4,7 @@ android {
     namespace = "tr.com.ozguvenis.portal"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "tr.com.ozguvenis.portal"
+        applicationId "portal.ozguvenis.com.tr"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

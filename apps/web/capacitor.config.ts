@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * API tarafında CORS_ORIGIN'e mobil kökenler eklenmeli: https://localhost (Android), capacitor://localhost (iOS).
  */
 const config: CapacitorConfig = {
-  appId: 'tr.com.ozguvenis.portal',
+  appId: 'portal.ozguvenis.com.tr',
   appName: 'Özgüveniş',
   webDir: 'dist',
   android: { allowMixedContent: false },
