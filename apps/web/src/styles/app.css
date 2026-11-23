@@ -280,8 +280,8 @@ small { color: var(--muted); }
 
 /* Tablet: sayfa başlığı (özet kutuları + düğmeler) alt alta */
 @media (max-width: 1000px) {
-  .tk-head, .ins-head { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; gap: 12px; }
-  .tk-actions, .ins-actions { justify-content: flex-start; }
+  .ins-head { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; gap: 12px; }
+  .ins-actions { justify-content: flex-start; }
 }
 
 @keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }

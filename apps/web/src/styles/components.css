@@ -212,6 +212,51 @@ textarea { resize: vertical; width: 100%; }
 .push-prompt__text b { font-size: 14px; }
 .push-prompt__text small { color: var(--text-2); font-size: 12.5px; line-height: 1.4; }
 
+/* ---------- Sayfa başlık afişi (ana sayfadaki karşılama kartıyla aynı dil) ----------
+   Paletin degradesi üstünde başlık + yarı saydam özet kutuları + açık renk eylemler. Görevler sayfası kullanır. */
+.page-hero {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'lead stats' 'actions stats'; align-items: center; gap: 14px clamp(16px, 3vw, 40px);
+  margin: 0 0 18px; padding: clamp(20px, 2vw, 30px); border-radius: var(--r-xl); color: #fff;
+  /* Üstteki hafif koyu katman: beyaz yazı her palette WCAG AA kontrastını tutar */
+  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(135deg, var(--hero-1), var(--hero-2));
+}
+.page-hero::before, .page-hero::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; background: rgba(255, 255, 255, 0.08); }
+.page-hero::before { width: 320px; height: 320px; right: -80px; top: -140px; }
+.page-hero::after { width: 200px; height: 200px; right: 180px; bottom: -130px; background: rgba(255, 255, 255, 0.06); }
+.page-hero > * { position: relative; z-index: 1; }
+.page-hero h1 { color: #fff; }
+.hero-lead { grid-area: lead; min-width: 0; }
+.hero-kicker { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.92; }
+.hero-sub { margin: 6px 0 0; font-size: clamp(14px, 0.3vw + 13px, 16px); font-weight: 500; }
+.hero-stats { grid-area: stats; display: grid; grid-template-columns: repeat(4, minmax(96px, 1fr)); gap: 10px; margin: 0; }
+.hero-stat { display: grid; gap: 2px; align-content: start; padding: 12px 14px; border-radius: var(--r-lg); background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16); }
+.hero-stat dt { font-size: 12.5px; font-weight: 600; opacity: 0.95; line-height: 1.25; }
+.hero-stat dd { margin: 0; font: 800 26px/1.1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.hero-stat.alert { background: rgba(255, 255, 255, 0.95); color: #c62f39; box-shadow: none; }
+.hero-stat.alert dt { color: #6a6a6a; opacity: 1; }
+.hero-actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.btn.hero-light { background: #fff; color: #25231e; }
+.btn.hero-light:hover { background: #f1f1f1; }
+/* Afiş içindeki segment seçici: yarı saydam zemin, seçili parça beyaz */
+.page-hero .seg { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
+.page-hero .seg button { color: rgba(255, 255, 255, 0.92); }
+.page-hero .seg button:hover { color: #fff; }
+.page-hero .seg button.on { color: #25231e; background: #fff; box-shadow: none; }
+@media (max-width: 1180px) {
+  .page-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; }
+}
+@media (max-width: 720px) {
+  .page-hero { gap: 14px; padding: 18px 16px; }
+  .page-hero h1 { font-size: 24px; }
+  .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .hero-stat { padding: 10px 12px; }
+  .hero-stat dd { font-size: 22px; }
+  .hero-actions > .btn { flex: 1 1 auto; }
+  .hero-actions > .seg { flex: 1 1 auto; justify-content: center; }
+  .hero-actions > .seg button { flex: 1; }
+}
+
 /* Hızlı görev (Ekip / Mesajlar kartı) onayı */
 .quick-task-ok { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
 .quick-task-ok svg { color: var(--green, #2bb673); flex: none; margin-top: 2px; }

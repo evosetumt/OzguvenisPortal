@@ -1,20 +1,6 @@
 /* Görevler: başlık + özet, filtre çubuğu (çipler), kanban kolonları, gruplu liste */
-.tk-head {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'lead lead' 'stats actions';
-  align-items: center; gap: clamp(14px, 1.2vw, 18px) clamp(16px, 2vw, 32px); margin: 0 0 clamp(16px, 1.4vw, 20px);
-}
-.tk-lead { grid-area: lead; }
-.tk-sub { margin: 8px 0 0; color: var(--text-2); font-size: clamp(14px, 0.3vw + 13px, 17px); font-weight: 500; }
-/* Özet kartı: dört değer tek kartta, aralarında ince ayırıcı */
-.tk-stats { grid-area: stats; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-width: 0; max-width: 640px; margin: 0; padding: 6px; border-radius: var(--r-lg); }
-.tk-stat { display: grid; gap: 2px; min-width: 0; padding: 8px 16px; }
-.tk-stat + .tk-stat { border-left: 1px solid var(--separator); }
+/* Başlık afişi: components.css .page-hero (ana sayfadaki kartla aynı görünüm) */
 .ins-stats .stat { display: grid; gap: 2px; min-width: 112px; padding: 10px 16px; border-radius: var(--r-md); }
-/* Dar alanda etiket kesilmez, iki satıra iner */
-.tk-stats dt { color: var(--text-2); font-size: 12.5px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
-.tk-stats dd { margin: 0; font: 800 23px/1.1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.tk-stats .alert dd { color: var(--danger); }
-.tk-actions { grid-area: actions; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
 
 /* Filtre çubuğu */
 .tk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 7px; margin-bottom: var(--gap); border-radius: 999px; }
@@ -163,7 +149,7 @@
 }
 
 @media (max-width: 1180px) {
-  .tk-lead, .ins-lead { padding-right: 0; }
+  .ins-lead { padding-right: 0; }
   .tk-board { scroll-snap-type: x proximity; }
   .tk-col { scroll-snap-align: start; }
 }
@@ -178,14 +164,6 @@
   .tk-row__prio { justify-self: end; }
 }
 @media (max-width: 720px) {
-  .tk-head { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; gap: 12px; }
-  .tk-lead { min-height: 0; }
-  .tk-actions { justify-content: space-between; }
-  /* Telefon: 2×2, hücreler arasında dikey ve yatay ayırıcı */
-  .tk-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tk-stat { padding: 10px 14px; }
-  .tk-stat:nth-child(3) { border-left: 0; }
-  .tk-stat:nth-child(n + 3) { border-top: 1px solid var(--separator); }
   .tk-bar { border-radius: 24px; }
   .tk-find { flex-basis: 100%; }
   .tk-board { grid-template-columns: repeat(4, 84vw); margin: 0 -12px; padding: 0 12px 12px; scroll-snap-type: x mandatory; }

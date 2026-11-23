@@ -105,24 +105,25 @@ export function TasksPage() {
 
   return (
     <>
-      <header className="tk-head">
-        <div className="tk-lead">
+      {/* Ana sayfadaki gibi afiş kartı: başlık, dört özet ve eylemler paletin degradesi üstünde (components.css .page-hero) */}
+      <header className="page-hero tk-head">
+        <div className="hero-lead">
+          <p className="hero-kicker">İş takibi</p>
           <h1>Görevler</h1>
-          <p className="tk-sub">{openTotal} açık iş</p>
+          <p className="hero-sub">{openTotal ? `${openTotal} açık iş seni ve ekibini bekliyor.` : 'Açık iş yok.'}</p>
         </div>
-        {/* Dört özet tek kartta, aralarında ayırıcı çizgi (tasks.css .tk-stats) */}
-        <dl className="glass tk-stats">
-          <div className="tk-stat"><dt>Açık</dt><dd>{summary?.open ?? '–'}</dd></div>
-          <div className="tk-stat"><dt>Bu hafta bitecek</dt><dd>{summary?.dueThisWeek ?? '–'}</dd></div>
-          <div className={'tk-stat' + (summary?.overdue ? ' alert' : '')}><dt>Geciken</dt><dd>{summary?.overdue ?? '–'}</dd></div>
-          <div className="tk-stat"><dt>Bu hafta biten</dt><dd>{summary?.completedThisWeek ?? '–'}</dd></div>
+        <dl className="hero-stats">
+          <div className="hero-stat"><dt>Açık</dt><dd>{summary?.open ?? '–'}</dd></div>
+          <div className="hero-stat"><dt>Bu hafta bitecek</dt><dd>{summary?.dueThisWeek ?? '–'}</dd></div>
+          <div className={'hero-stat' + (summary?.overdue ? ' alert' : '')}><dt>Geciken</dt><dd>{summary?.overdue ?? '–'}</dd></div>
+          <div className="hero-stat"><dt>Bu hafta biten</dt><dd>{summary?.completedThisWeek ?? '–'}</dd></div>
         </dl>
-        <div className="tk-actions">
+        <div className="hero-actions">
+          {canWrite && <button className="btn hero-light" onClick={() => setCreateIn(statuses?.[0]?.id ?? 0)}><Plus size={18} /> Yeni görev</button>}
           <div className="seg" role="group" aria-label="Görünüm">
             <button className={view === 'board' ? 'on' : ''} aria-pressed={view === 'board'} onClick={() => switchView('board')}><Columns3 size={16} /> Pano</button>
             <button className={view === 'list' ? 'on' : ''} aria-pressed={view === 'list'} onClick={() => switchView('list')}><List size={16} /> Liste</button>
           </div>
-          {canWrite && <button className="btn primary" onClick={() => setCreateIn(statuses?.[0]?.id ?? 0)}><Plus size={18} /> Yeni görev</button>}
         </div>
       </header>
 
