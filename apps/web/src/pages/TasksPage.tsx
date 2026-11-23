@@ -110,11 +110,12 @@ export function TasksPage() {
           <h1>Görevler</h1>
           <p className="tk-sub">{openTotal} açık iş</p>
         </div>
-        <dl className="tk-stats">
-          <div className="glass stat"><dt>Açık</dt><dd>{summary?.open ?? '–'}</dd></div>
-          <div className="glass stat"><dt>Bu hafta bitecek</dt><dd>{summary?.dueThisWeek ?? '–'}</dd></div>
-          <div className={'glass stat' + (summary?.overdue ? ' alert' : '')}><dt>Geciken</dt><dd>{summary?.overdue ?? '–'}</dd></div>
-          <div className="glass stat"><dt>Bu hafta biten</dt><dd>{summary?.completedThisWeek ?? '–'}</dd></div>
+        {/* Dört özet tek kartta, aralarında ayırıcı çizgi (tasks.css .tk-stats) */}
+        <dl className="glass tk-stats">
+          <div className="tk-stat"><dt>Açık</dt><dd>{summary?.open ?? '–'}</dd></div>
+          <div className="tk-stat"><dt>Bu hafta bitecek</dt><dd>{summary?.dueThisWeek ?? '–'}</dd></div>
+          <div className={'tk-stat' + (summary?.overdue ? ' alert' : '')}><dt>Geciken</dt><dd>{summary?.overdue ?? '–'}</dd></div>
+          <div className="tk-stat"><dt>Bu hafta biten</dt><dd>{summary?.completedThisWeek ?? '–'}</dd></div>
         </dl>
         <div className="tk-actions">
           <div className="seg" role="group" aria-label="Görünüm">
