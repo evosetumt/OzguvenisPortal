@@ -36,6 +36,8 @@ export interface TaskDetail extends Omit<Task, 'subtaskTotal' | 'subtaskDone' | 
   comments: Comment[];
   watchers: UserRef[];
   createdBy: UserRef;
+  /** Görev ekleri (fotoğraf, belge) */
+  files: { id: number; fileName: string; mime: string; size: number }[];
   canEdit: boolean;
 }
 
@@ -66,6 +68,7 @@ export interface CalendarItem {
   description?: string | null;
   owner?: UserRef;
   attendees?: UserRef[];
+  files?: { id: number; fileName: string; mime: string; size: number }[];
   canEdit?: boolean;
   link?: string;
 }

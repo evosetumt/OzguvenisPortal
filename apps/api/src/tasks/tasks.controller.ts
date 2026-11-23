@@ -5,7 +5,7 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { ProjectsService } from './projects.service';
 import {
-  CommentDto, CreateTaskDto, MoveTaskDto, ProjectDto, SubtaskDto, UpdateProjectDto, UpdateSubtaskDto, UpdateTaskDto,
+  CommentDto, CreateTaskDto, MoveTaskDto, ProjectDto, SubtaskDto, TaskFilesDto, UpdateProjectDto, UpdateSubtaskDto, UpdateTaskDto,
 } from './tasks.dto';
 
 const optInt = (v?: string) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
@@ -111,6 +111,18 @@ export class TasksController {
   @RequirePermission('task.write')
   removeSubtask(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number) {
     return this.tasks.removeSubtask(u, id);
+  }
+
+  @Post('tasks/:id/files')
+  @RequirePermission('task.read')
+  addFiles(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: TaskFilesDto) {
+    return this.tasks.addFiles(u, id, dto.attachmentIds);
+  }
+
+  @Delete('tasks/:id/files/:attachmentId')
+  @RequirePermission('task.read')
+  removeFile(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Param('attachmentId', ParseIntPipe) attachmentId: number) {
+    return this.tasks.removeFile(u, id, attachmentId);
   }
 
   @Post('tasks/:id/comments')

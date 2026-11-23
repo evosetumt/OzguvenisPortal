@@ -8,6 +8,8 @@ import { dateKey, formatTime, localKey, todayKey } from '../lib/format';
 import { safeAppPath } from '../lib/safe-path';
 import type { CalendarItem, UserRef } from '../lib/types';
 import { Modal } from '../components/Modal';
+import { AttachmentPicker } from '../components/AttachmentPicker';
+import type { FileRef } from '../lib/types-workflow';
 import { deviceCalendarEnabled, deviceCalendarLastSync, deviceCalendarSupported, disableDeviceCalendar, enableDeviceCalendar, syncDeviceCalendar } from '../lib/device-calendar';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -126,6 +128,7 @@ function EventForm({ item, date, users, onClose, onSaved }: {
   });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<FileRef[]>(item?.files ?? []);
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault();
@@ -136,6 +139,7 @@ function EventForm({ item, date, users, onClose, onSaved }: {
     const body = {
       title: f.title, allDay: f.allDay, location: f.location, description: f.description, visibility: f.visibility,
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), attendeeIds: [...f.attendeeIds],
+      attachmentIds: files.map((x) => x.id),
     };
     try {
       await api(item ? `/calendar/${item.id}` : '/calendar', json(item ? 'PATCH' : 'POST', body));
@@ -187,6 +191,11 @@ function EventForm({ item, date, users, onClose, onSaved }: {
             </div>
           </div>
         </fieldset>
+        <div className="field">
+          <span>Ekler</span>
+          <AttachmentPicker files={files} canAdd={!ro} onAdd={(add) => setFiles((cur) => [...cur, ...add])}
+            onRemove={ro ? undefined : (x) => setFiles((cur) => cur.filter((y) => y.id !== x.id))} />
+        </div>
         {item?.owner && <small>Oluşturan: {item.owner.fullName}</small>}
         {error && <p className="error" role="alert">{error}</p>}
         {!ro && (

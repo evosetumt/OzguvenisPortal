@@ -9,6 +9,7 @@ import { dateKey, initials, timeAgo } from '../lib/format';
 import { CustomerPicker } from './CustomerPicker';
 import { PRIORITY_LABEL, TASK_TYPE_LABEL, type TaskDetail, type TaskStatus, type UserRef } from '../lib/types';
 import { useOverlay } from '../lib/overlay-stack';
+import { AttachmentPicker } from './AttachmentPicker';
 
 interface Props {
   taskId: number;
@@ -134,6 +135,11 @@ export function TaskDrawer({ taskId, statuses, users, onClose, onChanged }: Prop
             <textarea rows={4} readOnly={ro} value={desc} placeholder={ro ? '' : 'Ayrıntı ekleyin…'}
               onChange={(e) => setDesc(e.target.value)}
               onBlur={() => desc !== (t.description ?? '') && patch({ description: desc || null })} />
+
+            <h4>Ekler {(t.files?.length ?? 0) > 0 && <small>{t.files.length}</small>}</h4>
+            <AttachmentPicker files={t.files ?? []} canRemove={() => t.canEdit}
+              onAdd={(files) => run(() => api(`/tasks/${taskId}/files`, json('POST', { attachmentIds: files.map((f) => f.id) })))}
+              onRemove={(f) => window.confirm(`"${f.fileName}" görevden kaldırılsın mı?`) && void run(() => api(`/tasks/${taskId}/files/${f.id}`, json('DELETE')))} />
 
             <h4>Alt görevler <small>{t.subtasks.filter((s) => s.done).length}/{t.subtasks.length}</small></h4>
             <ul className="subtasks">

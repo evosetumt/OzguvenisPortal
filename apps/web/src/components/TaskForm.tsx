@@ -5,6 +5,8 @@ import { useAuth } from '../lib/auth';
 import { PRIORITY_LABEL, TASK_TYPE_LABEL, type Priority, type TaskDetail, type TaskStatus, type TaskType, type UserRef } from '../lib/types';
 import { Modal } from './Modal';
 import { CustomerPicker } from './CustomerPicker';
+import { AttachmentPicker } from './AttachmentPicker';
+import type { FileRef } from '../lib/types-workflow';
 
 interface Props {
   statuses: TaskStatus[];
@@ -30,6 +32,7 @@ export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, 
   });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<FileRef[]>([]);
   const up = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
   const submit = async (e: FormEvent) => {
@@ -45,6 +48,7 @@ export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, 
         priority: f.priority,
         taskType: f.taskType,
         customerRef: f.taskType !== 'general' && f.customerRef ? f.customerRef : null,
+        attachmentIds: files.map((x) => x.id),
       }));
       onCreated(t);
     } catch (err) {
@@ -58,6 +62,10 @@ export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, 
       <form className="form" onSubmit={submit}>
         <label>Başlık<input autoFocus required maxLength={250} value={f.title} onChange={up('title')} /></label>
         <label>Açıklama<textarea rows={3} value={f.description} onChange={up('description')} /></label>
+        <div className="field">Ekler
+          <AttachmentPicker files={files} onAdd={(add) => setFiles((cur) => [...cur, ...add])}
+            onRemove={(x) => setFiles((cur) => cur.filter((y) => y.id !== x.id))} />
+        </div>
         <div className="row">
           <label>Durum
             <select value={f.statusId} onChange={up('statusId')}>

@@ -1,9 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { uniqIds } from '../common/format';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { AuditService } from '../common/audit.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import type { AuthUser } from '../auth/auth.guard';
 import { Scope, scopeOf, startOfTodayUtc, taskScopeWhere } from '../common/scope';
 import { startOfLocalWeek } from '../common/local-time';
@@ -11,12 +12,14 @@ import { CreateTaskDto, MoveTaskDto, UpdateTaskDto } from './tasks.dto';
 
 const userSel = { select: { id: true, fullName: true, avatarUrl: true } } as const;
 
+const fileSel = { select: { id: true, fileName: true, mime: true, size: true } } as const;
+
 const listInclude = {
   project: { select: { id: true, name: true, color: true } },
   status: { select: { id: true, name: true, isDone: true } },
   assignee: userSel,
   subtasks: { select: { done: true } },
-  _count: { select: { comments: true } },
+  _count: { select: { comments: true, files: true } },
 } satisfies Prisma.TaskInclude;
 
 export interface TaskFilter {
@@ -27,12 +30,22 @@ export interface TaskFilter {
 }
 
 @Injectable()
-export class TasksService {
+export class TasksService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly audit: AuditService,
+    private readonly attachments: AttachmentsService,
   ) {}
+
+  onModuleInit() {
+    // Göreve eklenen dosyayı görevi görebilen herkes açabilir.
+    this.attachments.registerAccessCheck(async (u, attachmentId) => {
+      const scope = scopeOf(u, 'task.read');
+      if (!scope) return false;
+      return (await this.prisma.taskAttachment.count({ where: { attachmentId, task: { deletedAt: null, ...taskScopeWhere(u, scope) } } })) > 0;
+    });
+  }
 
   private readScope(u: AuthUser): Scope {
     const s = scopeOf(u, 'task.read');
@@ -136,11 +149,12 @@ export class TasksService {
         comments: { include: { user: userSel }, orderBy: { createdAt: 'asc' } },
         watchers: { include: { user: userSel } },
         createdBy: userSel,
+        files: { include: { attachment: fileSel }, orderBy: { createdAt: 'asc' } },
       },
     });
     const writeScope = scopeOf(u, 'task.write');
     const canEdit = !!writeScope && (await this.prisma.task.count({ where: { id, ...taskScopeWhere(u, writeScope, false) } })) > 0;
-    return { ...t, watchers: t.watchers.map((w) => w.user), canEdit };
+    return { ...t, watchers: t.watchers.map((w) => w.user), files: t.files.map((f) => f.attachment), canEdit };
   }
 
   /** related: görevi açan kayıt (ör. toplantı sırasında açılan görev → { type: 'meeting', id }). */
@@ -155,6 +169,7 @@ export class TasksService {
     const last = await this.prisma.task.aggregate({ where: { statusId }, _max: { sortOrder: true } });
 
     const watcherIds = uniqIds(u.id, dto.assigneeId);
+    const fileIds = await this.attachments.assertOwn(u.id, dto.attachmentIds ?? []);
     const task = await this.prisma.task.create({
       data: {
         title: dto.title.trim(),
@@ -173,6 +188,7 @@ export class TasksService {
         sortOrder: (last._max.sortOrder ?? -1) + 1,
         completedAt: status.isDone ? new Date() : null,
         watchers: { create: watcherIds.map((userId) => ({ userId })) },
+        files: { create: fileIds.map((attachmentId) => ({ attachmentId })) },
       },
     });
     await this.audit.log(u.id, 'task.create', 'task', task.id, dto);
@@ -339,6 +355,50 @@ export class TasksService {
     if (!s) throw new NotFoundException();
     await this.findVisible(u, s.taskId, this.writeScope(u), false);
     await this.prisma.taskSubtask.delete({ where: { id } });
+  }
+
+  // ---------- Ekler (fotoğraf, belge) ----------
+
+  /** Görevi görebilen herkes (sahada çalışan atanan dahil) dosya/fotoğraf ekleyebilir. */
+  async addFiles(u: AuthUser, taskId: number, attachmentIds: number[]) {
+    const task = await this.findVisible(u, taskId, this.readScope(u));
+    const ids = await this.attachments.assertOwn(u.id, attachmentIds);
+    const existing = await this.prisma.taskAttachment.findMany({ where: { taskId, attachmentId: { in: ids } }, select: { attachmentId: true } });
+    const have = new Set(existing.map((e) => e.attachmentId));
+    const add = ids.filter((id) => !have.has(id));
+    if (!add.length) return this.files(taskId);
+    await this.prisma.taskAttachment.createMany({ data: add.map((attachmentId) => ({ taskId, attachmentId })) });
+    await this.audit.log(u.id, 'task.files_add', 'task', taskId, { attachmentIds: add });
+    const [actor, recipientIds] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: u.id }, select: { fullName: true } }),
+      this.followers(task),
+    ]);
+    this.events.emit('task.commented', u.id, {
+      taskId, title: task.title, authorName: actor?.fullName ?? '', excerpt: add.length === 1 ? 'Bir dosya ekledi' : add.length + ' dosya ekledi', recipientIds,
+    });
+    return this.files(taskId);
+  }
+
+  /** Eki yükleyen veya görevi düzenleyebilen kaldırır (dosyanın kendisi silinmez, yalnız bağ). */
+  async removeFile(u: AuthUser, taskId: number, attachmentId: number) {
+    await this.findVisible(u, taskId, this.readScope(u));
+    const link = await this.prisma.taskAttachment.findUnique({
+      where: { taskId_attachmentId: { taskId, attachmentId } }, include: { attachment: { select: { uploadedById: true } } },
+    });
+    if (!link) throw new NotFoundException('Ek bulunamadı');
+    if (link.attachment.uploadedById !== u.id) {
+      const ws = scopeOf(u, 'task.write');
+      const canEdit = !!ws && (await this.prisma.task.count({ where: { id: taskId, ...taskScopeWhere(u, ws, false) } })) > 0;
+      if (!canEdit) throw new ForbiddenException('Yalnızca eki ekleyen veya görevi düzenleyebilen kaldırabilir');
+    }
+    await this.prisma.taskAttachment.delete({ where: { taskId_attachmentId: { taskId, attachmentId } } });
+    await this.audit.log(u.id, 'task.files_remove', 'task', taskId, { attachmentId });
+    return this.files(taskId);
+  }
+
+  private async files(taskId: number) {
+    const rows = await this.prisma.taskAttachment.findMany({ where: { taskId }, include: { attachment: fileSel }, orderBy: { createdAt: 'asc' } });
+    return rows.map((r) => r.attachment);
   }
 
   // ---------- Yorumlar ----------

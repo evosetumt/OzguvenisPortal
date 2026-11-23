@@ -44,6 +44,15 @@ export class AttachmentsService {
     return false;
   }
 
+  /** Kayda bağlanacak dosyalar bu kullanıcının yüklediği dosyalar mı? (başkasının dosyasını kendi kaydına bağlayıp erişim kazanamasın) */
+  async assertOwn(userId: number, ids: number[]): Promise<number[]> {
+    const uniq = [...new Set(ids)];
+    if (!uniq.length) return uniq;
+    const n = await this.prisma.attachment.count({ where: { id: { in: uniq }, uploadedById: userId } });
+    if (n !== uniq.length) throw new BadRequestException('Eklenen dosya bulunamadı');
+    return uniq;
+  }
+
   async save(userId: number, file: { originalname: string; mimetype: string; size: number; buffer: Buffer }) {
     if (!file?.buffer) throw new BadRequestException('Dosya yok');
     if (!ALLOWED.has(file.mimetype)) throw new BadRequestException('Bu dosya türüne izin verilmiyor');
@@ -77,7 +86,9 @@ export class AttachmentsService {
   /** Hiçbir kayda bağlanmamış dosyayı siler (yalnızca yükleyen, yükledikten sonra vazgeçerse). */
   async removeOrphan(userId: number, id: number) {
     const a = await this.prisma.attachment.findFirst({
-      where: { id, uploadedById: userId, expenseReceipts: { none: {} }, trackedItemFiles: { none: {} }, messages: { none: {} } },
+      where: { id, uploadedById: userId, expenseReceipts: { none: {} }, trackedItemFiles: { none: {} }, messages: { none: {} },
+        taskFiles: { none: {} }, eventFiles: { none: {} }, feedFiles: { none: {} },
+      },
     });
     if (!a) throw new NotFoundException('Dosya bulunamadı veya kullanımda');
     await this.prisma.attachment.delete({ where: { id } });

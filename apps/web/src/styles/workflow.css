@@ -99,3 +99,9 @@
   .ap-when { display: none; }
   .ap-chev { display: none; }
 }
+
+/* Ek seçici (görev, etkinlik, paylaşım): fotoğraf çek / dosya ekle */
+.att-picker { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+.att-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.att-actions .btn { color: var(--fg); }
+.att-empty { margin: 0; font-size: 13px; }

@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 export const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export const TASK_TYPES = ['general', 'erp_order', 'erp_quote'] as const;
@@ -17,6 +17,8 @@ export class CreateTaskDto {
   @IsOptional() @IsIn(TASK_TYPES) taskType?: string;
   @Nullable() @IsString() @MaxLength(60) customerRef?: string | null;
   @Nullable() @IsString() @MaxLength(60) erpDocNo?: string | null;
+  /** Önceden /attachments'a yüklenmiş dosyalar (fotoğraf, belge) */
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsInt({ each: true }) attachmentIds?: number[];
 }
 
 export class UpdateTaskDto {
@@ -30,6 +32,10 @@ export class UpdateTaskDto {
   @IsOptional() @IsIn(TASK_TYPES) taskType?: string;
   @Nullable() @IsString() @MaxLength(60) customerRef?: string | null;
   @Nullable() @IsString() @MaxLength(60) erpDocNo?: string | null;
+}
+
+export class TaskFilesDto {
+  @IsArray() @ArrayMaxSize(20) @IsInt({ each: true }) attachmentIds: number[];
 }
 
 export class MoveTaskDto {

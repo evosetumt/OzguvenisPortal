@@ -1,13 +1,15 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { AuditService } from '../common/audit.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import type { AuthUser } from '../auth/auth.guard';
 import { scopeOf, taskScopeWhere } from '../common/scope';
 import { CalendarEventDto, UpdateCalendarEventDto } from './calendar.dto';
 
 const userSel = { select: { id: true, fullName: true } } as const;
+const fileSel = { select: { id: true, fileName: true, mime: true, size: true } } as const;
 
 /**
  * Takvim öğesi: kendi etkinlikleri, görev bitiş tarihleri ve registerSource ile eklenen diğer modül kayıtları
@@ -28,6 +30,7 @@ export interface CalendarItem {
   description?: string | null;
   owner?: { id: number; fullName: string };
   attendees?: { id: number; fullName: string }[];
+  files?: { id: number; fileName: string; mime: string; size: number }[];
   canEdit?: boolean;
   link?: string;
 }
@@ -36,7 +39,7 @@ export interface CalendarItem {
 export type CalendarSource = (u: AuthUser, from: Date, to: Date) => Promise<CalendarItem[]>;
 
 @Injectable()
-export class CalendarService {
+export class CalendarService implements OnModuleInit {
   private readonly sources: CalendarSource[] = [];
 
   /** Diğer modüller (CalendarModule'ü import ederek) kendi kayıtlarını takvime yansıtır. */
@@ -48,7 +51,17 @@ export class CalendarService {
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly audit: AuditService,
+    private readonly attachments: AttachmentsService,
   ) {}
+
+  onModuleInit() {
+    // Etkinliğe eklenen dosyayı etkinliği görebilen herkes açabilir.
+    this.attachments.registerAccessCheck(async (u, attachmentId) =>
+      (await this.prisma.calendarEventAttachment.count({
+        where: { attachmentId, event: { deletedAt: null, ...this.eventScopeWhere(u) } },
+      })) > 0,
+    );
+  }
 
   private eventScopeWhere(u: AuthUser): Prisma.CalendarEventWhereInput {
     const or: Prisma.CalendarEventWhereInput[] = [
@@ -66,7 +79,7 @@ export class CalendarService {
     if (!(from < to) || to.getTime() - from.getTime() > 120 * 86400000) throw new BadRequestException('Geçersiz tarih aralığı');
     const events = await this.prisma.calendarEvent.findMany({
       where: { deletedAt: null, startsAt: { lt: to }, endsAt: { gte: from }, ...this.eventScopeWhere(u) },
-      include: { owner: userSel, attendees: { include: { user: userSel } } },
+      include: { owner: userSel, attendees: { include: { user: userSel } }, files: { include: { attachment: fileSel }, orderBy: { createdAt: 'asc' } } },
       orderBy: { startsAt: 'asc' },
     });
     const items: CalendarItem[] = events.map((e) => ({
@@ -82,6 +95,7 @@ export class CalendarService {
       description: e.description,
       owner: e.owner,
       attendees: e.attendees.map((a) => a.user),
+      files: e.files.map((f) => f.attachment),
       canEdit: e.ownerId === u.id,
     }));
 
@@ -126,6 +140,7 @@ export class CalendarService {
     const endsAt = new Date(dto.endsAt);
     this.validateTimes(startsAt, endsAt);
     const attendeeIds = [...new Set(dto.attendeeIds ?? [])].filter((id) => id !== u.id);
+    const fileIds = await this.attachments.assertOwn(u.id, dto.attachmentIds ?? []);
     const e = await this.prisma.calendarEvent.create({
       data: {
         title: dto.title.trim(),
@@ -137,6 +152,7 @@ export class CalendarService {
         visibility: dto.visibility ?? 'private',
         ownerId: u.id,
         attendees: { create: attendeeIds.map((userId) => ({ userId })) },
+        files: { create: fileIds.map((attachmentId) => ({ attachmentId })) },
       },
     });
     await this.audit.log(u.id, 'calendar.create', 'calendar_event', e.id, dto);
@@ -147,7 +163,7 @@ export class CalendarService {
   private async ownEvent(u: AuthUser, id: number) {
     const e = await this.prisma.calendarEvent.findFirst({
       where: { id, deletedAt: null },
-      include: { attendees: true },
+      include: { attendees: true, files: { select: { attachmentId: true } } },
     });
     if (!e) throw new NotFoundException('Etkinlik bulunamadı');
     if (e.ownerId !== u.id) throw new ForbiddenException('Yalnızca etkinliği oluşturan düzenleyebilir');
@@ -159,6 +175,15 @@ export class CalendarService {
     const startsAt = dto.startsAt ? new Date(dto.startsAt) : before.startsAt;
     const endsAt = dto.endsAt ? new Date(dto.endsAt) : before.endsAt;
     this.validateTimes(startsAt, endsAt);
+
+    // Yeni bağlanan dosyalar yükleyenin kendisine ait olmalı; zaten bağlı olanlar (başkası yüklemiş olabilir) kalır.
+    let fileIds: number[] | null = null;
+    if (dto.attachmentIds) {
+      const prevFiles = new Set(before.files.map((f) => f.attachmentId));
+      const wanted = [...new Set(dto.attachmentIds)];
+      await this.attachments.assertOwn(u.id, wanted.filter((x) => !prevFiles.has(x)));
+      fileIds = wanted;
+    }
 
     let newAttendees: number[] = [];
     await this.prisma.$transaction(async (tx) => {
@@ -180,6 +205,12 @@ export class CalendarService {
         newAttendees = [...next].filter((x) => !prev.has(x));
         await tx.calendarEventAttendee.deleteMany({ where: { eventId: id, userId: { notIn: [...next] } } });
         if (newAttendees.length) await tx.calendarEventAttendee.createMany({ data: newAttendees.map((userId) => ({ eventId: id, userId })) });
+      }
+      if (fileIds) {
+        const prevFiles = new Set(before.files.map((f) => f.attachmentId));
+        await tx.calendarEventAttachment.deleteMany({ where: { eventId: id, attachmentId: { notIn: fileIds } } });
+        const addFiles = fileIds.filter((x) => !prevFiles.has(x));
+        if (addFiles.length) await tx.calendarEventAttachment.createMany({ data: addFiles.map((attachmentId) => ({ eventId: id, attachmentId })) });
       }
     });
     await this.audit.log(u.id, 'calendar.update', 'calendar_event', id, dto);

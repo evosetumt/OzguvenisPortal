@@ -11,6 +11,8 @@ export class CalendarEventDto {
   @IsOptional() @IsBoolean() allDay?: boolean;
   @IsOptional() @IsIn(VISIBILITIES) visibility?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(100) @IsInt({ each: true }) attendeeIds?: number[];
+  /** Etkinliğe bağlı dosyalar (gönderilirse liste bununla değiştirilir) */
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsInt({ each: true }) attachmentIds?: number[];
 }
 
 export class UpdateCalendarEventDto {
@@ -22,4 +24,5 @@ export class UpdateCalendarEventDto {
   @IsOptional() @IsBoolean() allDay?: boolean;
   @IsOptional() @IsIn(VISIBILITIES) visibility?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(100) @IsInt({ each: true }) attendeeIds?: number[];
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsInt({ each: true }) attachmentIds?: number[];
 }
