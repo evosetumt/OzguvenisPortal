@@ -157,8 +157,14 @@ textarea { resize: vertical; width: 100%; }
   .cal-day { min-height: 64px; padding: 3px; }
   .cal-item { font-size: 10px; padding: 2px 3px; }
   .cal-item small { display: none; }
-  .drawer-overlay { padding: 0; }
-  .drawer { width: 100%; border-radius: 0; padding-top: calc(22px + var(--sat)); padding-bottom: calc(22px + var(--sab)); }
+  /* Telefon: çekmece (görev detayı, kişi profili ...) alttan açılan oval kenarlı kart; üstte zemin görünür,
+     kenarlar yuvarlak kalır, durum çubuğunun altına girmez. */
+  .drawer-overlay { padding: calc(14px + var(--sat)) 0 0; place-items: end stretch; }
+  .drawer {
+    width: 100%; height: auto; max-height: 100%; border-radius: var(--r-xl) var(--r-xl) 0 0;
+    padding: 8px 18px calc(22px + var(--sab)); animation: sheet-up 0.28s var(--ease) both;
+  }
+  .drawer::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 12px; border-radius: 2px; background: var(--surface-3); }
   .table th:nth-child(n+4), .table td:nth-child(n+4) { display: none; }
 }
 /* Telefon: pencereler alttan açılan sayfa (bottom sheet). Kapatma düğmesi başparmağa yakın kalır,

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Printer } from 'lucide-react';
+import { Download, Loader2, Printer, Share2 } from 'lucide-react';
 import { api } from '../lib/api';
+import { htmlToPdf } from '../lib/html-pdf';
+import { downloadBlob, shareFile } from '../lib/share';
 import { Modal } from './Modal';
 
 interface EDocument {
@@ -123,12 +125,28 @@ export function EDocumentPreview({ customerCode, docNo, onClose }: { customerCod
     return () => { alive = false; };
   }, [customerCode, docNo]);
 
+  const [busy, setBusy] = useState<'share' | 'pdf' | null>(null);
+  const [note, setNote] = useState('');
   const download = () => {
     if (!doc) return;
-    const url = URL.createObjectURL(new Blob([doc.xml], { type: 'application/xml' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = `${doc.gibNo ?? doc.docNo}.xml`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadBlob(new Blob([doc.xml], { type: 'application/xml' }), `${doc.gibNo ?? doc.docNo}.xml`);
+  };
+  /** Faturayı PDF'e çevirir; paylaş: cihazın paylaşım menüsü (WhatsApp, e-posta ...), değilse indirir. */
+  const exportPdf = async (kind: 'share' | 'pdf') => {
+    if (!doc || !html || busy) return;
+    setBusy(kind); setNote(''); setError('');
+    try {
+      const pdf = await htmlToPdf(html);
+      const name = `${doc.gibNo ?? doc.docNo}.pdf`;
+      if (kind === 'pdf') { downloadBlob(pdf, name); return; }
+      const label = `${doc.source === 'earsiv' ? 'e-Arşiv' : 'e-Fatura'} ${doc.gibNo ?? doc.docNo}`;
+      const result = await shareFile(pdf, name, label, `${label} · ${doc.customerName}`);
+      if (result === 'downloaded') setNote('Bu tarayıcı dosya paylaşımını desteklemiyor; PDF indirildi, WhatsApp\'a ekleyebilirsiniz.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'PDF oluşturulamadı');
+    } finally {
+      setBusy(null);
+    }
   };
   const print = () => frame.current?.contentWindow?.print();
   /** A4 fatura dar ekrana sığmıyorsa çerçeve genişliğine ölçeklenir (çerçeve içinde parmakla yakınlaştırma yok). */
@@ -154,9 +172,16 @@ export function EDocumentPreview({ customerCode, docNo, onClose }: { customerCod
             <div className="edoc-bar">
               <small className="muted">{doc?.customerName}{mode === 'ozet' && ' · özet görünüm (resmi şablon yok)'}</small>
               <span className="push" />
+              <button className="btn sm primary" onClick={() => void exportPdf('share')} disabled={!!busy} title="WhatsApp, e-posta veya başka bir uygulamayla PDF olarak paylaş">
+                {busy === 'share' ? <Loader2 size={14} className="spin" /> : <Share2 size={14} />} Paylaş
+              </button>
+              <button className="btn sm" onClick={() => void exportPdf('pdf')} disabled={!!busy}>
+                {busy === 'pdf' ? <Loader2 size={14} className="spin" /> : <Download size={14} />} PDF
+              </button>
               <button className="btn sm" onClick={print}><Printer size={14} /> Yazdır</button>
               <button className="btn sm" onClick={download}><Download size={14} /> XML</button>
             </div>
+            {note && <p className="edoc-note">{note}</p>}
             {/* allow-same-origin: yazdırma için; allow-scripts YOK: belgedeki betikler çalışmaz */}
             <iframe ref={frame} className="edoc-frame" title={title} sandbox="allow-same-origin allow-modals" srcDoc={html} onLoad={fitToFrame} />
           </>

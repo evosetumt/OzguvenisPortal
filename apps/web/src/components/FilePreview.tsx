@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Download, Minus, Plus, RotateCw, X } from 'lucide-react';
+import { Download, Minus, Plus, RotateCw, Share2, X } from 'lucide-react';
 import { fileBlob, PREVIEW_EVENT, type PreviewRequest } from '../lib/files';
+import { shareFile } from '../lib/share';
 
-interface Loaded { url: string; type: string; name: string }
+interface Loaded { url: string; type: string; name: string; blob: Blob }
 
 /** Uygulama içi dosya görüntüleyici: görsel (yakınlaştır/döndür), PDF; diğer türler için indirme. Shell'de bir kez bulunur. */
 export function FilePreview() {
@@ -26,7 +27,7 @@ export function FilePreview() {
     fileBlob(req.id)
       .then(({ blob, name }) => {
         url = URL.createObjectURL(blob);
-        if (alive) setFile({ url, type: blob.type, name: req.name ?? name ?? `dosya-${req.id}` });
+        if (alive) setFile({ url, blob, type: blob.type, name: req.name ?? name ?? `dosya-${req.id}` });
         else URL.revokeObjectURL(url);
       })
       .catch((e) => alive && setErr(e instanceof Error ? e.message : 'Dosya açılamadı'));
@@ -44,6 +45,11 @@ export function FilePreview() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [req]);
 
+  const share = async () => {
+    if (!file) return;
+    try { await shareFile(file.blob, file.name, file.name); } catch (e) { setErr(e instanceof Error ? e.message : 'Paylaşılamadı'); }
+  };
+
   if (!req) return null;
   const isImage = file?.type.startsWith('image/');
   const isPdf = file?.type === 'application/pdf';
@@ -60,6 +66,7 @@ export function FilePreview() {
               <button className="icon-btn" title="Döndür" onClick={() => setRot((r) => (r + 90) % 360)}><RotateCw size={18} /></button>
             </>
           )}
+          {file && <button className="icon-btn" title="Paylaş (WhatsApp, e-posta…)" onClick={() => void share()}><Share2 size={18} /></button>}
           {file && <a className="icon-btn" title="İndir" href={file.url} download={file.name}><Download size={18} /></a>}
           <button className="icon-btn" title="Kapat (Esc)" onClick={() => setReq(null)}><X size={20} /></button>
         </span>

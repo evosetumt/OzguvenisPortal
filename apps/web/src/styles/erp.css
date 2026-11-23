@@ -49,8 +49,16 @@
 .edoc-link { font-size: inherit; padding: 0; gap: 4px; }
 .edoc { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .edoc-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.edoc-note { margin: 0; padding: 8px 12px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; }
 .edoc-frame { width: 100%; height: min(75vh, 1000px); border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; }
-@media (max-width: 860px) { .edoc-frame { height: calc(100dvh - 240px); } }
+/* Telefon: müşteri adı tek satır, altında Paylaş / PDF / Yazdır / XML eşit genişlikte */
+@media (max-width: 860px) {
+  .edoc-frame { height: calc(100dvh - 270px); }
+  .edoc-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .edoc-bar > small { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .edoc-bar > .push { display: none; }
+  .edoc-bar > .btn { padding: 0 6px; gap: 4px; font-size: 13px; }
+}
 /* Fatura A4 genişliğinde basılır; önizleme penceresi buna göre geniş açılır */
 .modal.wide:has(.edoc) { width: min(1060px, calc(100vw - 32px)); max-width: none; }
 @media (max-width: 860px) { .modal.wide:has(.edoc) { width: 100%; padding: 12px; } }
