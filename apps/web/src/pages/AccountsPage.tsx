@@ -7,6 +7,7 @@ import { QUOTE_STATUS_LABEL, day, money, type Customer, type CustomerDetail, typ
 import { StatusBadge } from './OrdersPage';
 import { EDocumentPreview } from '../components/EDocumentPreview';
 import '../styles/erp.css';
+import { useOverlay } from '../lib/overlay-stack';
 
 /** Netsis cari kartları, bakiyeler ve ekstre (salt okunur). */
 export function AccountsPage() {
@@ -113,12 +114,8 @@ export function AccountsPage() {
 function CustomerDrawer({ code, onClose }: { code: string; onClose(): void }) {
   const [preview, setPreview] = useState<string | null>(null);
   const { data: c, error } = useApi<CustomerDetail>(`/erp/customers/${encodeURIComponent(code)}`);
-  useEffect(() => {
-    // e-Belge önizlemesi açıkken Esc yalnızca önizlemeyi kapatsın
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !preview && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, preview]);
+  // e-Belge önizlemesi kendi penceresi olarak yığının üstünde durur; Esc/geri önce onu kapatır.
+  useOverlay(onClose);
 
   return (
     <div className="overlay drawer-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>

@@ -3,6 +3,7 @@ import { storeGet, storeSet } from './storage';
 import { api } from './api';
 import { json } from './data';
 import { safeAppPath } from './safe-path';
+import { closeTopOverlay } from './overlay-stack';
 
 /**
  * Bu cihazda anlık bildirim: her yerde Firebase Cloud Messaging. Tarayıcıda FCM jetonu portalın service worker'ı
@@ -134,6 +135,8 @@ export async function initNativeApp(navigate: (path: string) => void, isDisposed
     if (to) navigate(to);
   }));
   handles.push(await App.addListener('backButton', ({ canGoBack }) => {
+    // Açık pencere (önizleme, çekmece, form) varsa geri tuşu önce onu kapatır, sayfa değişmez.
+    if (closeTopOverlay()) return;
     if (canGoBack && window.location.hash.replace(/^#/, '') !== '/') window.history.back();
     else void App.exitApp();
   }));

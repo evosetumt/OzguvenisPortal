@@ -22,6 +22,7 @@ import { FilePreview } from './FilePreview';
 import { CallProvider } from '../lib/calls';
 import { CallLayer } from './chat/CallLayer';
 import { PushPrompt } from './PushPrompt';
+import { useOverlay } from '../lib/overlay-stack';
 import type { ThemePref } from '../lib/theme';
 
 // perm: görünürlük için gereken izin (dizi ise herhangi biri); yoksa herkese görünür
@@ -31,7 +32,7 @@ const NAV: NavItem[] = [
   { to: '/tasks', label: 'Görevler', icon: CheckSquare, perm: 'task.read' },
   { to: '/calendar', label: 'Takvim', icon: CalendarDays, perm: 'calendar.read' },
   { to: '/messages', label: 'Mesajlar', icon: MessageSquare },
-  { to: '/feed', label: 'Akış', icon: Newspaper },
+  { to: '/feed', label: 'İş Akışları', icon: Newspaper },
   { to: '/team', label: 'Ekip', icon: Users },
   { to: '/meetings', label: 'Toplantılar', icon: Video },
   { to: '/approvals', label: 'Onaylarım', icon: ClipboardCheck },
@@ -40,7 +41,7 @@ const NAV: NavItem[] = [
   { to: '/accounts', label: 'Cari Hesaplar', icon: Wallet, perm: 'account.read' },
   { to: '/expenses', label: 'Masraflar', icon: Receipt, perm: 'expense.create' },
   { to: '/tracking', label: 'Süre Takibi', icon: Timer, perm: 'tracking.read' },
-  { to: '/workflows', label: 'Akış Tasarımcısı', icon: Workflow, perm: 'workflow.design' },
+  { to: '/workflows', label: 'Süreç Tasarımcısı', icon: Workflow, perm: 'workflow.design' },
   { to: '/settings', label: 'Ayarlar', icon: Settings },
 ];
 
@@ -124,12 +125,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
   // Telefonda sayfa değişince çekmece kapanır; Esc ile de kapanır.
   useEffect(() => { side.closeMobile(); setSheet(false); }, [loc.pathname, loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!side.mobileOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && side.closeMobile();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [side.mobileOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  useOverlay(side.closeMobile, side.mobileOpen);
+  useOverlay(() => setSheet(false), sheet);
   // Ctrl+B (Mac: ⌘B) menüyü açar/kapatır
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

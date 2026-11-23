@@ -9,6 +9,7 @@ import { RECURRENCE_LABEL, STATUS_LABEL, TYPE_LABEL, type Department, type Payme
 import { DaysLeft, fmtDay, fmtMoney } from '../tracking/common';
 import { PaymentForm } from './PaymentForm';
 import { AssignForm } from './AssignForm';
+import { useOverlay } from '../../lib/overlay-stack';
 
 interface Props {
   paymentId: number;
@@ -24,6 +25,7 @@ export function PaymentDrawer({ paymentId, users, departments, defaultLeadDays, 
   const [editing, setEditing] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [err, setErr] = useState('');
+  useOverlay(onClose);
 
   const run = async (fn: () => Promise<unknown>) => {
     setErr('');

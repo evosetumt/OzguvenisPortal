@@ -162,7 +162,7 @@ textarea { resize: vertical; width: 100%; }
   .drawer-overlay { padding: calc(14px + var(--sat)) 0 0; place-items: end stretch; }
   .drawer {
     width: 100%; height: auto; max-height: 100%; border-radius: var(--r-xl) var(--r-xl) 0 0;
-    padding: 8px 18px calc(22px + var(--sab)); animation: sheet-up 0.28s var(--ease) both;
+    padding: 8px 18px calc(22px + var(--sab)); animation: sheet-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
   .drawer::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 12px; border-radius: 2px; background: var(--surface-3); }
   .table th:nth-child(n+4), .table td:nth-child(n+4) { display: none; }
@@ -173,10 +173,15 @@ textarea { resize: vertical; width: 100%; }
   .overlay:not(.drawer-overlay) { place-items: end stretch; padding: calc(24px + var(--sat)) 0 0; }
   .overlay:not(.drawer-overlay) > .modal {
     max-width: none; max-height: calc(100dvh - 24px - var(--sat)); border-radius: var(--r-xl) var(--r-xl) 0 0;
-    padding: 8px 16px calc(18px + var(--sab)); animation: sheet-up 0.28s var(--ease) both;
+    padding: 8px 16px calc(18px + var(--sab)); animation: sheet-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
   .overlay:not(.drawer-overlay) > .modal::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 10px; border-radius: 2px; background: var(--surface-3); }
-  @keyframes sheet-up { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+/* Açılan pencereler alttan yukarı kayar (telefonda ekranın altından tam boy, masaüstünde kısa mesafe). */
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes modal-up { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (min-width: 861px) and (prefers-reduced-motion: no-preference) {
+  .overlay:not(.drawer-overlay) > .modal { animation: modal-up 0.3s var(--ease) both; }
 }
 
 /* Ayarlar sekmeleri: masaüstünde sarar, telefonda yatay kayar */

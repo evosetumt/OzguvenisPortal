@@ -57,7 +57,7 @@ function ExpenseSettingsInner() {
           <label>Otomatik onay eşiği (TL)<input inputMode="decimal" required pattern="[0-9]+([.,][0-9]{1,2})?" value={f.autoApproveLimit} onChange={(e) => setF({ ...f, autoApproveLimit: e.target.value })} /></label>
           <label>Onay hatırlatma süresi (saat)<input type="number" min={1} max={720} required value={f.approvalReminderHours} onChange={(e) => setF({ ...f, approvalReminderHours: e.target.value })} /></label>
         </div>
-        <p className="hint">Eşik ve altındaki masraflar yönetici onayı olmadan muhasebeye düşer. Süreç akışı Akış Tasarımcısı'ndan değiştirilebilir.</p>
+        <p className="hint">Eşik ve altındaki masraflar yönetici onayı olmadan muhasebeye düşer. Süreç akışı Süreç Tasarımcısı'ndan değiştirilebilir.</p>
         <div className="actions"><button className="btn primary sm">Kaydet</button></div>
       </form>
 

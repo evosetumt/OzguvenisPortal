@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { dateKey, initials, timeAgo } from '../lib/format';
 import { CustomerPicker } from './CustomerPicker';
 import { PRIORITY_LABEL, TASK_TYPE_LABEL, type TaskDetail, type TaskStatus, type UserRef } from '../lib/types';
+import { useOverlay } from '../lib/overlay-stack';
 
 interface Props {
   taskId: number;
@@ -27,11 +28,7 @@ export function TaskDrawer({ taskId, statuses, users, onClose, onChanged }: Prop
   const [err, setErr] = useState('');
 
   useEffect(() => { if (t) { setTitle(t.title); setDesc(t.description ?? ''); } }, [t?.id, t?.title, t?.description]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useOverlay(onClose);
 
   const run = async (fn: () => Promise<unknown>) => {
     setErr('');

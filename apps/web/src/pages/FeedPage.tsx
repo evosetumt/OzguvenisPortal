@@ -51,7 +51,7 @@ export function FeedPage() {
     <>
       <div className="page-head">
         <div>
-          <h1>Akış</h1>
+          <h1>İş Akışları</h1>
           <p className="sub">{SCOPE_SUB[scope]} · müşteri görüşmeleri, durum güncellemeleri ve iş hareketleri</p>
         </div>
         {scope !== 'own' && (
@@ -67,7 +67,7 @@ export function FeedPage() {
           <Composer onPosted={() => void reload()} />
           {error && <p className="error">{error}</p>}
           {loading && !data && <p className="empty">Yükleniyor…</p>}
-          {data && items.length === 0 && <p className="empty fd-empty">Akışta henüz bir şey yok. İlk paylaşımı sen yap.</p>}
+          {data && items.length === 0 && <p className="empty fd-empty">İş akışında henüz bir şey yok. İlk paylaşımı sen yap.</p>}
           {items.map((item) => (
             <FeedCard key={item.id} item={item} onChange={replace} onRemoved={removed} onAddActivity={setActivityFor} />
           ))}

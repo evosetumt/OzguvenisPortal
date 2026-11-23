@@ -134,3 +134,8 @@
   .pf-id h2 { font-size: 21px; }
 }
 @media (max-width: 400px) { .pf-cards { grid-template-columns: 1fr; } }
+
+/* Profil: kişiye doğrudan görev ata / mesaj */
+.pf-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+.pf-actions .btn { flex: 1 1 140px; justify-content: center; }
+.tm-assign { white-space: nowrap; }

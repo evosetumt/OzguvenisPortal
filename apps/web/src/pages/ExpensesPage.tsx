@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Paperclip, Plus, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { json, useApi } from '../lib/data';
+import { useOverlay } from '../lib/overlay-stack';
 import { useAuth } from '../lib/auth';
 import { ExpenseForm } from '../components/workflow/ExpenseForm';
 import { ExpenseSummary } from '../components/workflow/ExpenseSummary';
@@ -90,11 +91,7 @@ export function ExpensesPage() {
 function ExpenseDrawer({ id, onClose, onEdit, onChanged }: { id: number; onClose(): void; onEdit(e: ExpenseDetail): void; onChanged(): void }) {
   const { data: e, error, reload } = useApi<ExpenseDetail>(`/expenses/${id}`);
   const [err, setErr] = useState('');
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useOverlay(onClose);
 
   const act = async (fn: () => Promise<unknown>, close = false) => {
     setErr('');

@@ -39,7 +39,7 @@ export function WorkflowsPage() {
 
   return (
     <>
-      <h1>Akış Tasarımcısı</h1>
+      <h1>Süreç Tasarımcısı</h1>
       <p className="sub">BPMN süreç tanımları ve çalışan süreçlerin izlenmesi</p>
       <div className="glass toolbar">
         <div className="seg" role="tablist">

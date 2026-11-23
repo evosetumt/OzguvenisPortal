@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, Minus, Plus, RotateCw, Share2, X } from 'lucide-react';
 import { fileBlob, PREVIEW_EVENT, type PreviewRequest } from '../lib/files';
 import { shareFile } from '../lib/share';
+import { useOverlay } from '../lib/overlay-stack';
 
 interface Loaded { url: string; type: string; name: string; blob: Blob }
 
@@ -34,10 +35,12 @@ export function FilePreview() {
     return () => { alive = false; if (url) URL.revokeObjectURL(url); };
   }, [req]);
 
+  // Esc ve Android geri tuşu önce önizlemeyi kapatır (alttaki masraf/görev penceresi açık kalır).
+  useOverlay(() => setReq(null), !!req);
+
   useEffect(() => {
     if (!req) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); setReq(null); }
       if (e.key === '+' || e.key === '=') setZoom((z) => Math.min(4, z + 0.25));
       if (e.key === '-') setZoom((z) => Math.max(0.5, z - 0.25));
     };

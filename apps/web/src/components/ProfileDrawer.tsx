@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Camera, ChevronRight, KeyRound, ListChecks, Mail, Phone, Trash2, X } from 'lucide-react';
+import { Bell, Camera, ChevronRight, KeyRound, ListChecks, Mail, MessageSquare, Phone, Trash2, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { json, useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
@@ -8,7 +8,9 @@ import { dateKey, formatDue, formatTime, todayKey } from '../lib/format';
 import { PRESENCE, patchPerson } from '../lib/people';
 import { PRIORITY_LABEL } from '../lib/types';
 import { Avatar } from './Avatar';
+import { QuickTaskButton } from './QuickTaskButton';
 import '../styles/team.css';
+import { useOverlay } from '../lib/overlay-stack';
 
 export interface Profile {
   id: number; fullName: string; email: string; phone: string | null; title: string | null; avatarUrl: string | null;
@@ -45,11 +47,7 @@ export function ProfileDrawer({ userId, onClose }: { userId: number; onClose(): 
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useOverlay(onClose);
 
   const update = (change: Partial<Profile>) => {
     setData((x) => (x ? { ...x, ...change } : x));
@@ -120,6 +118,11 @@ export function ProfileDrawer({ userId, onClose }: { userId: number; onClose(): 
                 )}
               </div>
             </header>
+            {/* Ekip sayfasında kişi seçilince doğrudan ona görev atanır / mesaj yazılır. */}
+            <div className="pf-actions">
+              <QuickTaskButton labeled userId={p.id} userName={p.fullName} className="primary" />
+              {!p.self && <Link className="btn sm" to={`/messages?to=${p.id}`} onClick={onClose}><MessageSquare size={16} /><span>Mesaj</span></Link>}
+            </div>
             {err && <p className="error" role="alert">{err}</p>}
 
             {p.self && (

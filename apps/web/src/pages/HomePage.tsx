@@ -211,7 +211,7 @@ const QUICK: QuickLink[] = [
   { to: '/messages', label: 'Mesajlar', icon: MessageSquare },
   { to: '/approvals', label: 'Onaylar', icon: ClipboardCheck },
   { to: '/meetings', label: 'Toplantı', icon: Video },
-  { to: '/feed', label: 'Akış', icon: Newspaper },
+  { to: '/feed', label: 'İş Akışları', icon: Newspaper },
   { to: '/team', label: 'Ekip', icon: Users },
   { to: '/orders', label: 'Siparişler', icon: FileText, perm: ['order.read', 'quote.read', 'shipment.read'] },
   { to: '/accounts', label: 'Cariler', icon: Wallet, perm: 'account.read' },

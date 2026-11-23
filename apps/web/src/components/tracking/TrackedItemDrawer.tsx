@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Paperclip, Pencil, RefreshCw, Trash2, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { json, useApi } from '../../lib/data';
@@ -9,6 +9,7 @@ import { CATEGORY_LABEL, PERIOD_LABEL, STATUS_LABEL, type TrackedItemDetail, typ
 import { Modal } from '../Modal';
 import { TrackedItemForm } from './TrackedItemForm';
 import { DaysLeft, fmtDay, fmtMoney } from './common';
+import { useOverlay } from '../../lib/overlay-stack';
 
 interface Props {
   itemId: number;
@@ -25,11 +26,7 @@ export function TrackedItemDrawer({ itemId, users, vehicles, onClose, onChanged,
   const [renewing, setRenewing] = useState(false);
   const [err, setErr] = useState('');
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !editing && !renewing && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, editing, renewing]);
+  useOverlay(() => { if (!editing && !renewing) onClose(); });
 
   const run = async (fn: () => Promise<unknown>) => {
     setErr('');

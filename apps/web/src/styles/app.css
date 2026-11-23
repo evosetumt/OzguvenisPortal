@@ -239,11 +239,11 @@ small { color: var(--muted); }
   }
   .sheet {
     width: 100%; max-height: calc(100dvh - 120px - var(--sat)); overflow: auto; padding: 10px 14px 16px;
-    border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: none; animation: sheet-in 0.28s var(--ease);
+    border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: none; animation: sheet-in 0.34s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .sheet::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 12px; border-radius: 2px; background: var(--surface-3); }
   .sheet-title { margin: 0 4px 10px; font: 800 18px/1.2 var(--font-display); }
-  @keyframes sheet-in { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
   .sheet-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 4px; }
   .sheet-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 10px 2px; border-radius: var(--r-md); color: var(--fg); text-decoration: none; font-size: 12.5px; font-weight: 600; text-align: center; line-height: 1.2; }
   .sheet-item:active { background: var(--surface-2); }

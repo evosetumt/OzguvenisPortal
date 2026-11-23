@@ -1,13 +1,10 @@
-import { useEffect, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useOverlay } from '../lib/overlay-stack';
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose(): void; children: ReactNode; wide?: boolean }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useOverlay(onClose);
 
   // body'ye taşınır: .glass (backdrop-filter/transform) içindeki modal o karta hapsolmasın.
   return createPortal(

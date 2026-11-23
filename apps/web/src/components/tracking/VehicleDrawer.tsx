@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { json, useApi } from '../../lib/data';
@@ -7,6 +7,7 @@ import type { UserRef } from '../../lib/types';
 import { CATEGORY_LABEL, type VehicleDetail } from '../../lib/types-tracking';
 import { Modal } from '../Modal';
 import { DaysLeft, fmtDay, fmtMoney } from './common';
+import { useOverlay } from '../../lib/overlay-stack';
 
 interface Props {
   vehicleId: number;
@@ -23,11 +24,7 @@ export function VehicleDrawer({ vehicleId, users, onClose, onChanged, onOpenItem
   const [addingService, setAddingService] = useState(false);
   const [err, setErr] = useState('');
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !editing && !addingService && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, editing, addingService]);
+  useOverlay(() => { if (!editing && !addingService) onClose(); });
 
   const run = async (fn: () => Promise<unknown>) => {
     setErr('');

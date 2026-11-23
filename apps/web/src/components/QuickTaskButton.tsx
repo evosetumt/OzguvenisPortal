@@ -24,7 +24,7 @@ export function QuickTaskButton({ userId, userName, className = '', labeled = fa
   return (
     <>
       {labeled ? (
-        <button type="button" className={'btn sm ' + className} title={`${userName} için görev aç`} onClick={start}><ListPlus size={16} /><span>Görev</span></button>
+        <button type="button" className={'btn sm ' + className} title={`${userName} için görev aç`} onClick={start}><ListPlus size={16} /><span>Görev ata</span></button>
       ) : (
         <button type="button" className={'icon-btn sm quick-task ' + className} title={`${userName} için görev aç`} aria-label={`${userName} için görev aç`} onClick={start}>
           <Plus size={15} />
