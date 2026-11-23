@@ -52,7 +52,7 @@
 .pf-photo { position: relative; flex: none; }
 .pf-photo-btn {
   position: absolute; left: -2px; bottom: -2px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 0;
-  background: var(--accent); color: #fff; cursor: pointer; box-shadow: 0 0 0 3px var(--glass-solid);
+  background: var(--accent); color: var(--accent-fg); cursor: pointer; box-shadow: 0 0 0 3px var(--glass-solid);
 }
 .pf-photo-btn:disabled { opacity: 0.6; }
 .pf-id { display: grid; gap: 4px; min-width: 0; padding-right: 30px; }
@@ -71,7 +71,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 6px; border: 0; border-radius: 999px;
   background: transparent; color: var(--text-2); font: 600 12.5px/1 var(--font); cursor: pointer; white-space: nowrap;
 }
-.pf-seg button.on { background: var(--lens); color: var(--text); box-shadow: var(--lens-glow); }
+.pf-seg button.on { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 .pf-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pf-card { display: grid; gap: 6px; padding: 12px 14px; border-radius: 18px; background: var(--fill); min-width: 0; }
 .pf-card small { color: var(--text-2); font-size: 12px; font-weight: 600; }

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowUpRight, CalendarDays, Check, CheckCircle2, ClipboardCheck, MessageSquare, MessageSquareText, Plus, Timer, Video,
+  AlertTriangle, ArrowUpRight, BarChart3, CalendarDays, Check, CheckCircle2, ClipboardCheck, FileText, MessageSquare, MessageSquareText,
+  Newspaper, Plus, Timer, Users, Video, Wallet,
 } from 'lucide-react';
 import { useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
@@ -92,24 +93,27 @@ export function HomePage() {
 
   return (
     <>
-      <header className="hm-head">
+      {/* Karşılama afişi: paletin degradesi üstünde selam, günün özeti ve hızlı eylemler */}
+      <header className="hm-hero">
         <div className="hm-lead">
+          <p className="hm-date">{new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           <h1>{greeting()}, {me!.fullName.split(' ')[0]}</h1>
           <p className="hm-sub">
-            {new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}
-            {' · '}{laterToday ? `${laterToday} toplantı` : 'toplantı yok'} ve {openLeft ? `${openLeft} görev` : 'bekleyen görev yok'} bugün
+            Bugün {laterToday ? `${laterToday} toplantı` : 'toplantı yok'}, {openLeft ? `${openLeft} görev seni bekliyor` : 'bekleyen görev yok'}.
           </p>
         </div>
         <dl className="hm-stats">
-          <div className="glass stat"><dt>Bugün biten</dt><dd>{todayDone}<small>/ {todayTotal}</small></dd></div>
-          <div className="glass stat"><dt>Açık görevim</dt><dd>{summary?.open ?? '–'}</dd></div>
-          <div className={'glass stat' + (summary?.overdue ? ' alert' : '')}><dt>Geciken</dt><dd>{summary?.overdue ?? '–'}</dd></div>
+          <div className="hm-stat"><dt>Bugün biten</dt><dd>{todayDone}<small>/ {todayTotal}</small></dd></div>
+          <div className="hm-stat"><dt>Açık görevim</dt><dd>{summary?.open ?? '–'}</dd></div>
+          <div className={'hm-stat' + (summary?.overdue ? ' alert' : '')}><dt>Geciken</dt><dd>{summary?.overdue ?? '–'}</dd></div>
         </dl>
         <div className="hm-actions">
-          {can('task.write') && <button className="btn ghost" onClick={() => nav('/tasks?new=1')}><Plus size={17} /> Yeni görev</button>}
-          {next && <button className="btn primary" onClick={() => openEvent(next)}><Video size={17} /> Sıradaki: {eventWhen(next.start)}</button>}
+          {can('task.write') && <button className="btn hm-btn-light" onClick={() => nav('/tasks?new=1')}><Plus size={17} /> Yeni görev</button>}
+          {next && <button className="btn hm-btn-glass" onClick={() => openEvent(next)}><Video size={17} /> Sıradaki: {eventWhen(next.start)}</button>}
         </div>
       </header>
+
+      <QuickLinks badges={{ '/approvals': approvals?.length ?? 0, '/messages': unread, '/tasks': summary?.overdue ?? 0 }} />
 
       <div className="home">
         <section className="glass hm-card hm-today">
@@ -197,6 +201,37 @@ export function HomePage() {
         {canTasks && home && <RightNow home={home} />}
       </div>
     </>
+  );
+}
+
+interface QuickLink { to: string; label: string; icon: typeof Check; perm?: string | string[] }
+const QUICK: QuickLink[] = [
+  { to: '/tasks', label: 'Görevler', icon: CheckCircle2, perm: 'task.read' },
+  { to: '/calendar', label: 'Takvim', icon: CalendarDays, perm: 'calendar.read' },
+  { to: '/messages', label: 'Mesajlar', icon: MessageSquare },
+  { to: '/approvals', label: 'Onaylar', icon: ClipboardCheck },
+  { to: '/meetings', label: 'Toplantı', icon: Video },
+  { to: '/feed', label: 'Akış', icon: Newspaper },
+  { to: '/team', label: 'Ekip', icon: Users },
+  { to: '/orders', label: 'Siparişler', icon: FileText, perm: ['order.read', 'quote.read', 'shipment.read'] },
+  { to: '/accounts', label: 'Cariler', icon: Wallet, perm: 'account.read' },
+  { to: '/insights', label: 'Analiz', icon: BarChart3, perm: 'report.read' },
+  { to: '/tracking', label: 'Süreler', icon: Timer, perm: 'tracking.read' },
+];
+
+/** Yatay kaydırılan kısayol kutucukları (kategori şeridi); sayı rozeti bekleyen işi gösterir. */
+function QuickLinks({ badges }: { badges: Record<string, number> }) {
+  const { can } = useAuth();
+  const links = QUICK.filter((q) => !q.perm || [q.perm].flat().some(can));
+  return (
+    <nav className="hm-quick" aria-label="Kısayollar">
+      {links.map(({ to, label, icon: Icon }) => (
+        <Link key={to} to={to}>
+          <span className="hm-quick__ico"><Icon size={24} strokeWidth={1.9} />{(badges[to] ?? 0) > 0 && <b>{badges[to] > 99 ? '99+' : badges[to]}</b>}</span>
+          <span>{label}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }
 

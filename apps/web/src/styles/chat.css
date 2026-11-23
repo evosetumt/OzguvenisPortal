@@ -154,7 +154,7 @@ button.person:hover { background: var(--glass); }
 .call-notice { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 70; padding: 10px 18px; border-radius: 999px; background: rgba(15, 18, 24, 0.9); color: #fff; font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .avatar.ringing { animation: none; } }
 @media (max-width: 860px) {
-  .glass.incoming-call { background: var(--glass-float); backdrop-filter: var(--float-blur); -webkit-backdrop-filter: var(--float-blur); left: 16px; right: 16px; bottom: calc(76px + var(--sab)); flex-wrap: wrap; justify-content: center; }
+  .glass.incoming-call { background: var(--surface); box-shadow: var(--shadow-lift); left: 16px; right: 16px; bottom: calc(76px + var(--sab)); flex-wrap: wrap; justify-content: center; }
   .incoming-actions { margin-left: 0; }
   .call-notice { bottom: calc(84px + var(--sab)); }
 }

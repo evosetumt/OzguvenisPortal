@@ -27,9 +27,12 @@ const Nullable = () => ValidateIf((_, v) => v !== null && v !== undefined);
 export const THEMES = ['light', 'dark', 'auto'] as const;
 export const WALLPAPERS = ['duz', 'kul', 'kum', 'adacayi', 'kutup', 'duman', 'gelgit', 'cicek', 'kor', 'koru', 'alacakaranlik'] as const;
 export const ACCENTS = ['mavi', 'mor', 'pembe', 'turuncu', 'yesil', 'grafit', 'altin'] as const;
+/** Renk teması (apps/web/src/lib/palette.ts ile aynı liste). Duvar kâğıdı / vurgu rengi eski istemciler için kabul edilmeye devam eder. */
+export const PALETTES = ['ozguvenis', 'okyanus', 'orman', 'gunbatimi', 'grafit'] as const;
 
 class UiPrefsDto {
   @IsOptional() @IsIn(THEMES) theme?: string;
+  @IsOptional() @IsIn(PALETTES) palette?: string;
   @IsOptional() @IsIn(WALLPAPERS) wallpaper?: string;
   @IsOptional() @IsIn(ACCENTS) accent?: string;
 }

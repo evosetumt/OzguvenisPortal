@@ -3,7 +3,7 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'lead lead' 'stats actions';
   align-items: center; gap: clamp(14px, 1.2vw, 18px) clamp(16px, 2vw, 32px); margin: 0 0 clamp(18px, 1.6vw, 24px);
 }
-.ins-lead { grid-area: lead; min-height: 60px; padding-right: calc(clamp(240px, 22vw, 440px) + 200px); }
+.ins-lead { grid-area: lead; }
 .ins-sub { color: var(--text-2); margin: 8px 0 0; font-size: clamp(14px, 0.3vw + 13px, 17px); font-weight: 500; }
 .ins-stats { grid-area: stats; display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
 .ins-stats .stat { display: grid; gap: 2px; min-width: 112px; padding: 10px 16px; border-radius: var(--r-md); }

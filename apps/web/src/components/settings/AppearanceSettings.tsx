@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
-import { ACCENTS, WALLPAPERS, getPrefs, setPrefs, subscribe, type ThemePref } from '../../lib/theme';
+import { PALETTES, getPrefs, setPrefs, subscribe, type ThemePref } from '../../lib/theme';
 
 const THEMES: { id: ThemePref; label: string; icon: typeof Sun }[] = [
   { id: 'light', label: 'Açık', icon: Sun },
@@ -8,12 +8,17 @@ const THEMES: { id: ThemePref; label: string; icon: typeof Sun }[] = [
   { id: 'auto', label: 'Otomatik', icon: Monitor },
 ];
 
-/** Ayarlar → Görünüm: tema, duvar kâğıdı, vurgu rengi. Seçim anında uygulanır ve hesaba kaydedilir. */
+const MODE_HINT: Record<ThemePref, string> = {
+  auto: 'Otomatik: cihazın açık/koyu ayarını izler',
+  light: 'Açık',
+  dark: 'Koyu',
+};
+
+/** Ayarlar → Görünüm: açık/koyu mod ve renk teması. Seçim anında uygulanır ve hesaba kaydedilir. */
 export function AppearanceSettings() {
   const [p, setP] = useState(getPrefs());
   useEffect(() => subscribe(() => setP(getPrefs())), []);
-  const wall = WALLPAPERS.find((w) => w.id === p.wallpaper);
-  const accent = ACCENTS.find((a) => a.id === p.accent);
+  const palette = PALETTES.find((x) => x.id === p.palette);
 
   return (
     <section className="glass panel appearance">
@@ -23,8 +28,8 @@ export function AppearanceSettings() {
       </div>
 
       <div className="appearance-row">
-        <div><h4>Tema</h4><small>{p.theme === 'auto' ? 'Otomatik: cihazın açık/koyu ayarını izler' : p.theme === 'light' ? 'Açık' : 'Koyu'}</small></div>
-        <div className="seg" role="radiogroup" aria-label="Tema">
+        <div><h4>Mod</h4><small>{MODE_HINT[p.theme]}</small></div>
+        <div className="seg" role="radiogroup" aria-label="Mod">
           {THEMES.map(({ id, label, icon: Icon }) => (
             <button key={id} role="radio" aria-checked={p.theme === id} className={p.theme === id ? 'on' : ''} onClick={() => setPrefs({ theme: id })}>
               <Icon size={15} /> {label}
@@ -34,27 +39,21 @@ export function AppearanceSettings() {
       </div>
 
       <div>
-        <h4>Duvar kâğıdı</h4><small>{wall?.label}</small>
-        <div className="walls" role="radiogroup" aria-label="Duvar kâğıdı">
-          {WALLPAPERS.map((w) => (
-            <button key={w.id} role="radio" aria-checked={p.wallpaper === w.id} className={'wall' + (p.wallpaper === w.id ? ' on' : '')}
-              onClick={() => setPrefs({ wallpaper: w.id })}>
-              <span className="wall-thumb" data-wallpaper={w.id}>{p.wallpaper === w.id && <span className="wall-check"><Check size={12} /></span>}</span>
-              {w.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h4>Vurgu rengi</h4><small>{accent?.label}</small>
-        <div className="accents" role="radiogroup" aria-label="Vurgu rengi">
-          {ACCENTS.map((a) => (
-            <button key={a.id} role="radio" aria-checked={p.accent === a.id} aria-label={a.label} title={a.label}
-              className={'accent-dot' + (p.accent === a.id ? ' on' : '')} style={{ background: a.color }} onClick={() => setPrefs({ accent: a.id })}>
-              {p.accent === a.id && <Check size={16} />}
-            </button>
-          ))}
+        <h4>Renk teması</h4><small>{palette?.label}</small>
+        <div className="palettes" role="radiogroup" aria-label="Renk teması">
+          {PALETTES.map((x) => {
+            const on = p.palette === x.id;
+            return (
+              <button key={x.id} role="radio" aria-checked={on} className={'pal' + (on ? ' on' : '')} onClick={() => setPrefs({ palette: x.id })}>
+                <span className="pal-thumb" data-palette={x.id} aria-hidden="true">
+                  <span className="pal-hero" />
+                  <span className="pal-row"><i /><b /></span>
+                  {on && <span className="pal-check"><Check size={12} /></span>}
+                </span>
+                {x.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

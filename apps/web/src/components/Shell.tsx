@@ -10,11 +10,10 @@ import { getPrefs, getTheme, setPrefs, setTheme, subscribe } from '../lib/theme'
 import { useApi } from '../lib/data';
 import type { TaskSummary } from '../lib/types';
 import { NotificationsBell } from './NotificationsBell';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { connectRealtime, disconnectRealtime, useSocketEvent } from '../lib/realtime';
 import { useUnreadMessages } from './chat/useUnreadMessages';
 import { initNativeApp } from '../lib/push';
-import { placeLens } from '../lib/effects';
 import { BrandLogo } from './BrandLogo';
 import { Avatar } from './Avatar';
 import { UserMenu } from './UserMenu';
@@ -26,7 +25,8 @@ import { PushPrompt } from './PushPrompt';
 import type { ThemePref } from '../lib/theme';
 
 // perm: görünürlük için gereken izin (dizi ise herhangi biri); yoksa herkese görünür
-const NAV: { to: string; label: string; icon: typeof Home; perm?: string | string[] }[] = [
+interface NavItem { to: string; label: string; icon: typeof Home; perm?: string | string[] }
+const NAV: NavItem[] = [
   { to: '/', label: 'Ana Sayfa', icon: Home },
   { to: '/tasks', label: 'Görevler', icon: CheckSquare, perm: 'task.read' },
   { to: '/calendar', label: 'Takvim', icon: CalendarDays, perm: 'calendar.read' },
@@ -43,6 +43,9 @@ const NAV: { to: string; label: string; icon: typeof Home; perm?: string | strin
   { to: '/workflows', label: 'Akış Tasarımcısı', icon: Workflow, perm: 'workflow.design' },
   { to: '/settings', label: 'Ayarlar', icon: Settings },
 ];
+
+/** Telefon alt çubuğunda gösterilecek bölümler (öncelik sırası). */
+const TAB_ORDER = ['/', '/tasks', '/messages', '/calendar', '/feed'];
 
 const SIDE_KEY = 'ozg-sidebar';
 const MOBILE = '(max-width: 860px)';
@@ -95,6 +98,17 @@ export function Shell({ children }: { children: ReactNode }) {
   const items = NAV.filter((n) => !n.perm || [n.perm].flat().some(can));
   const openCount = myTasks?.open ?? 0;
   const unreadMessages = useUnreadMessages(me!.id);
+  const canAdd = can('task.write');
+  // Alt çubuk sekmeleri: öncelik sırasıyla yetkili olunanlar; ortada "+" varsa 3, yoksa 4 sekme sığar.
+  const tabs = TAB_ORDER.map((to) => items.find((n) => n.to === to)).filter((n): n is NavItem => !!n).slice(0, canAdd ? 3 : 4);
+  const isOn = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(to));
+  const onTab = tabs.some((n) => isOn(n.to));
+  const renderTab = ({ to, label, icon: Icon }: NavItem) => (
+    <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>
+      <Icon size={22} /><span>{label.split(' ')[0]}</span>
+      {to === '/messages' && unreadMessages > 0 && <i className="tab-dot" />}
+    </NavLink>
+  );
 
   // Yönetici rolümü/yetkilerimi değiştirdi: menü ve erişim hemen güncellensin.
   useSocketEvent('auth:changed', () => void reloadSession());
@@ -107,16 +121,6 @@ export function Shell({ children }: { children: ReactNode }) {
     void initNativeApp(nav, () => disposed).then((d) => { dispose = d; if (disposed) d(); });
     return () => { disposed = true; dispose?.(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Kayan menü göstergesi: aktif öğeye yumuşakça kayar
-  const navRef = useRef<HTMLElement>(null);
-  const lensRef = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const move = () => placeLens(navRef.current, lensRef.current, navRef.current?.querySelector<HTMLElement>('.nav-item.active') ?? null);
-    move();
-    window.addEventListener('resize', move);
-    return () => window.removeEventListener('resize', move);
-  }, [loc.pathname, loc.search, items.length, side.open]);
 
   // Telefonda sayfa değişince çekmece kapanır; Esc ile de kapanır.
   useEffect(() => { side.closeMobile(); setSheet(false); }, [loc.pathname, loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,8 +154,7 @@ export function Shell({ children }: { children: ReactNode }) {
             {side.mobile ? <X size={19} /> : <PanelLeftClose size={19} />}
           </button>
         </div>
-        <nav ref={navRef} className="has-lens">
-          <span className="nav-lens" ref={lensRef} aria-hidden="true" />
+        <nav>
           {items.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} end={to === '/'}
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}>
@@ -173,29 +176,32 @@ export function Shell({ children }: { children: ReactNode }) {
           <form className="search" onSubmit={search} role="search">
             <Search size={19} /><input placeholder="Görevlerde ara…" aria-label="Görevlerde ara" value={q} onChange={(e) => setQ(e.target.value)} />
           </form>
-          {can('task.write') && <button className="icon-btn" title="Hızlı görev ekle" onClick={() => nav('/tasks?new=1')}><Plus size={21} /></button>}
-          <button className="icon-btn theme-btn" title="Tema" onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
-          <NotificationsBell />
+          <div className="topbar-end">
+            {canAdd && <button className="icon-btn add-btn" title="Hızlı görev ekle" onClick={() => nav('/tasks?new=1')}><Plus size={21} /></button>}
+            <button className="icon-btn theme-btn" title={theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç'} onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
+            <NotificationsBell />
+          </div>
         </header>
         <main className="content">{children}</main>
         <PushPrompt />
       </div>
-      {/* Telefon: alt sekme çubuğu (ilk 4 bölüm + tüm bölümleri açan Menü) */}
-      <nav className="glass tabbar">
-        {items.slice(0, 4).map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>
-            <Icon size={21} /><span>{label.split(' ')[0]}</span>
-            {to === '/messages' && unreadMessages > 0 && <i className="tab-dot" />}
-          </NavLink>
-        ))}
-        <button className={'tab' + (sheet || !items.slice(0, 4).some((n) => n.to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(n.to)) ? ' active' : '')}
-          aria-expanded={sheet} onClick={() => setSheet(!sheet)}>
-          {sheet ? <X size={21} /> : <LayoutGrid size={21} />}<span>Menü</span>
+      {/* Telefon: alt sekme çubuğu — ana bölümler, ortada hızlı görev "+", sağda tüm bölümleri açan Menü */}
+      <nav className="glass tabbar" aria-label="Alt menü">
+        {tabs.slice(0, 2).map(renderTab)}
+        {canAdd && (
+          <button className="tab tab-add" onClick={() => nav('/tasks?new=1')} aria-label="Hızlı görev ekle">
+            <i><Plus size={24} strokeWidth={2.4} /></i><span>Yeni</span>
+          </button>
+        )}
+        {tabs.slice(2).map(renderTab)}
+        <button className={'tab' + (sheet || !onTab ? ' active' : '')} aria-expanded={sheet} onClick={() => setSheet(!sheet)}>
+          {sheet ? <X size={22} /> : <LayoutGrid size={22} />}<span>Menü</span>
         </button>
       </nav>
       {sheet && (
         <div className="sheet-overlay" onClick={(e) => e.target === e.currentTarget && setSheet(false)}>
           <div className="glass sheet" role="dialog" aria-label="Tüm bölümler">
+            <p className="sheet-title">Tüm bölümler</p>
             <div className="sheet-grid">
               {items.map(({ to, label, icon: Icon }) => (
                 <NavLink key={to} to={to} end={to === '/'} onClick={() => setSheet(false)} className={({ isActive }) => 'sheet-item' + (isActive ? ' active' : '')}>

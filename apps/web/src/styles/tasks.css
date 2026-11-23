@@ -3,7 +3,7 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'lead lead' 'stats actions';
   align-items: center; gap: clamp(14px, 1.2vw, 18px) clamp(16px, 2vw, 32px); margin: 0 0 clamp(16px, 1.4vw, 20px);
 }
-.tk-lead { grid-area: lead; min-height: 60px; padding-right: calc(clamp(240px, 22vw, 440px) + 200px); }
+.tk-lead { grid-area: lead; }
 .tk-sub { margin: 8px 0 0; color: var(--text-2); font-size: clamp(14px, 0.3vw + 13px, 17px); font-weight: 500; }
 .tk-stats { grid-area: stats; display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
 .tk-stats .stat, .ins-stats .stat { display: grid; gap: 2px; min-width: 112px; padding: 10px 16px; border-radius: var(--r-md); }
@@ -60,11 +60,9 @@
 
 .tk-card {
   --tone: var(--text-3);
-  position: relative; display: grid; gap: 9px; padding: 13px 13px 12px 17px; border-radius: 18px; cursor: grab; user-select: none; overflow: hidden;
-  background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone) 13%, transparent), transparent 60%),
-    var(--glass-thick);
-  box-shadow: var(--shadow), inset 0 1px 0 var(--rim-mid), inset 0 0 0 1px color-mix(in srgb, var(--tone) 14%, transparent); outline: none;
+  position: relative; display: grid; gap: 9px; padding: 13px 13px 12px 17px; border-radius: var(--r-md); cursor: grab; user-select: none; overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-card); outline: none;
   transition: transform 0.25s var(--ease);
 }
 .tk-card.prio-normal { --tone: var(--prio-normal); }

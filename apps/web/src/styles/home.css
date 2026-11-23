@@ -1,21 +1,57 @@
-/* Ana sayfa panosu: Bugün halkaları, Sıradaki, Dikkat / Görevlerim, Bu hafta / Projeler, Şu an */
-:root { --ring-tasks: #ff2d6f; --ring-focus: #4ade6b; --ring-meet: #22c3f0; }
-:root[data-theme='light'] { --ring-tasks: #f0145a; --ring-focus: #2fbf4f; --ring-meet: #0aa6d8; }
+/* Ana sayfa: karşılama afişi, kısayol şeridi, Bugün / Sıradaki / Dikkat, Görevlerim / Bu hafta, Şu an */
+/* İlerleme renkleri B2B grafik paletinden (theme.css --chart-*) */
+:root { --ring-tasks: var(--accent); --ring-focus: var(--chart-3); --ring-meet: var(--chart-2); }
 
-.hm-head {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'lead lead' 'stats actions';
-  align-items: center; gap: clamp(14px, 1.2vw, 18px) clamp(16px, 2vw, 32px); margin: 0 0 clamp(18px, 1.6vw, 24px);
+/* ---------- Karşılama afişi ---------- */
+.hm-hero {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'lead stats' 'actions stats'; align-items: center; gap: 14px clamp(16px, 3vw, 40px);
+  margin: 0 0 18px; padding: clamp(20px, 2vw, 30px); border-radius: var(--r-xl); color: #fff;
+  /* Üstteki hafif koyu katman: beyaz yazı her palette WCAG AA kontrastını tutar */
+  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(135deg, var(--hero-1), var(--hero-2));
 }
-.hm-lead { grid-area: lead; min-height: 60px; padding-right: calc(clamp(240px, 22vw, 440px) + 200px); }
-.hm-sub { margin: 8px 0 0; color: var(--text-2); font-size: clamp(14px, 0.3vw + 13px, 17px); font-weight: 500; }
-.hm-sub::first-letter { text-transform: uppercase; }
-.hm-stats { grid-area: stats; display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
-.hm-stats .stat { display: grid; gap: 2px; min-width: 112px; padding: 10px 16px; border-radius: var(--r-md); }
-.hm-stats dt { color: var(--text-2); font-size: 12.5px; font-weight: 560; }
-.hm-stats dd { margin: 0; display: flex; align-items: baseline; gap: 3px; font: 700 23px/1.1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.hm-stats dd small { color: var(--text-2); font-size: 14px; font-weight: 600; }
-.hm-stats .alert dd { color: var(--danger); }
-.hm-actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+/* Afişte hafif doku: büyük yumuşak daireler (görsel dosya yok) */
+.hm-hero::before, .hm-hero::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; background: rgba(255, 255, 255, 0.08); }
+.hm-hero::before { width: 320px; height: 320px; right: -80px; top: -140px; }
+.hm-hero::after { width: 200px; height: 200px; right: 180px; bottom: -130px; background: rgba(255, 255, 255, 0.06); }
+.hm-hero > * { position: relative; z-index: 1; }
+.hm-lead { grid-area: lead; min-width: 0; }
+.hm-date { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.92; }
+.hm-hero h1 { color: #fff; }
+.hm-sub { margin: 6px 0 0; font-size: clamp(14px, 0.3vw + 13px, 16px); font-weight: 500; }
+.hm-stats { grid-area: stats; display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 10px; margin: 0; }
+.hm-stat { display: grid; gap: 2px; padding: 12px 14px; border-radius: var(--r-lg); background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16); }
+.hm-stats dt { font-size: 12.5px; font-weight: 600; opacity: 0.95; }
+.hm-stats dd { margin: 0; display: flex; align-items: baseline; gap: 3px; font: 800 26px/1.1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.hm-stats dd small { color: inherit; opacity: 0.75; font-size: 14px; font-weight: 600; }
+.hm-stat.alert { background: rgba(255, 255, 255, 0.95); color: #c62f39; box-shadow: none; }
+.hm-stat.alert dt { color: #6a6a6a; opacity: 1; }
+.hm-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 10px; }
+.btn.hm-btn-light { background: #fff; color: #25231e; }
+.btn.hm-btn-light:hover { background: #f1f1f1; }
+.btn.hm-btn-glass { background: rgba(255, 255, 255, 0.16); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+.btn.hm-btn-glass:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* ---------- Kısayol şeridi (kategori kutucukları) ---------- */
+.hm-quick {
+  display: flex; gap: 6px; margin: 0 0 18px; padding: 2px 2px 6px; overflow-x: auto; scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.hm-quick::-webkit-scrollbar { display: none; }
+.hm-quick a {
+  position: relative; flex: none; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 2px;
+  border-radius: var(--r-md); color: var(--fg); text-decoration: none; font-size: 12.5px; font-weight: 600; text-align: center;
+  scroll-snap-align: start;
+}
+.hm-quick__ico {
+  position: relative; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 20px;
+  background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-card); transition: transform 0.2s var(--ease), background 0.2s;
+}
+.hm-quick a:hover .hm-quick__ico { transform: translateY(-3px); background: var(--accent-soft); }
+.hm-quick__ico b {
+  position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--danger); color: #fff; font: 700 11px/1 var(--font); box-shadow: 0 0 0 2px var(--bg);
+}
 
 .home {
   display: grid; gap: var(--gap); grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -47,9 +83,8 @@
 
 /* Sıradaki */
 .next-hero {
-  display: grid; gap: 4px; width: 100%; padding: 14px; border: 0; border-radius: 20px; text-align: left; cursor: pointer; color: var(--text); font: inherit;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-ink) 30%, transparent);
+  display: grid; gap: 4px; width: 100%; padding: 14px; border: 0; border-radius: var(--r-lg); text-align: left; cursor: pointer; color: var(--fg); font: inherit;
+  background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent);
 }
 .next-hero small { color: var(--text-2); font-size: 12.5px; font-weight: 650; }
 .next-hero b { font: 650 18px/1.25 var(--font-display); }
@@ -102,13 +137,13 @@
 .wk-col.today small { color: var(--text); }
 .wk-track { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; border-radius: 14px; background: var(--well); overflow: hidden; }
 .wk-bar {
-  position: relative; display: block; width: 100%; min-height: 3px; border-radius: 12px 12px 4px 4px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-ink) 80%, #fff 0%), color-mix(in srgb, var(--accent-ink) 55%, transparent));
+  position: relative; display: block; width: 100%; min-height: 3px; border-radius: 10px 10px 4px 4px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
   transition: height 0.6s var(--ease);
 }
-.wk-col.today .wk-bar { background: linear-gradient(180deg, var(--accent-ink), var(--accent)); }
+.wk-col.today .wk-bar { background: var(--accent); }
 .wk-col.future .wk-track { opacity: 0.6; }
-.wk-bar span { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font: 700 12px/1 var(--font); color: #fff; }
+.wk-bar span { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font: 700 12px/1 var(--font); color: var(--accent-fg); }
 
 /* Projeler */
 .proj-rows { display: grid; margin: 0; padding: 0; list-style: none; }
@@ -146,16 +181,21 @@
 .act-ico.commented { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
 
 @media (max-width: 1180px) {
-  .hm-lead { padding-right: 0; }
+  .hm-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; }
   .home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'today next' 'attn attn' 'tasks tasks' 'week week' 'proj proj' 'now now'; }
 }
 @media (max-width: 720px) {
-  .hm-head { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; gap: 12px; }
-  .hm-lead { min-height: 0; }
-  .hm-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .hm-stats .stat { min-width: 0; padding: 10px 12px; }
-  .hm-actions { justify-content: stretch; }
-  .hm-actions .btn { flex: 1; }
+  .hm-hero { gap: 14px; padding: 18px 16px; margin-inline: -2px; }
+  .hm-hero h1 { font-size: 24px; }
+  .hm-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .hm-stat { min-width: 0; padding: 10px; }
+  .hm-stats dt { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hm-stats dd { font-size: 22px; }
+  .hm-actions .btn { flex: 1 1 auto; min-width: 0; }
+  .hm-actions .btn.hm-btn-glass { overflow: hidden; text-overflow: ellipsis; }
+  .hm-quick { margin-inline: -14px; padding-inline: 12px; }
+  .hm-quick a { width: 76px; }
+  .hm-quick__ico { width: 58px; height: 58px; border-radius: 18px; }
   .home { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'next' 'attn' 'tasks' 'week' 'proj' 'now'; }
   .proj-rows a { grid-template-columns: 36px minmax(0, 1fr) 40px; grid-template-areas: 'ico name pct' 'ico bar bar'; row-gap: 6px; }
   .proj-ico { grid-area: ico; width: 36px; height: 36px; } .proj-name { grid-area: name; } .proj-bar { grid-area: bar; } .proj-pct { grid-area: pct; }
