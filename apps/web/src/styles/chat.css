@@ -158,3 +158,14 @@ button.person:hover { background: var(--glass); }
   .incoming-actions { margin-left: 0; }
   .call-notice { bottom: calc(84px + var(--sab)); }
 }
+
+/* Çevrimiçi göstergesi ve okundu işaretleri (WhatsApp benzeri) */
+.avatar.is-online { position: relative; }
+.avatar.is-online::after {
+  content: ''; position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%;
+  background: #22c55e; border: 2px solid var(--surface);
+}
+.chat-head .who small.is-online { color: #16a34a; font-weight: 600; }
+.msg-receipt { display: inline-flex; vertical-align: -2px; margin-left: 3px; color: var(--muted); }
+.msg-receipt.read { color: #34b7f1; }
+.msg-readby { font-variant-numeric: tabular-nums; }

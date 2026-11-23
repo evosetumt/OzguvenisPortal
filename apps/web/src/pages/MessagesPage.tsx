@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Users } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { json, useApi } from '../lib/data';
@@ -10,7 +10,15 @@ import { conversationTitle, type ChatMessage, type Conversation } from '../lib/t
 import { MessageThread } from '../components/chat/MessageThread';
 import { NewConversationModal } from '../components/chat/NewConversationModal';
 import { GroupInfoModal } from '../components/chat/GroupInfoModal';
+import { useOnline } from '../lib/online';
 import '../styles/chat.css';
+
+/** Sohbet listesindeki avatar: birebir sohbette karşı taraf çevrimiçiyse yeşil nokta. */
+function ConvAvatar({ c, meId }: { c: Conversation; meId: number }) {
+  const other = c.type === 'direct' ? c.members.find((m) => m.id !== meId) : undefined;
+  const state = useOnline(other?.id);
+  return <span className={'avatar' + (state?.online ? ' is-online' : '')}>{c.type === 'group' ? '#' : initials(conversationTitle(c, meId))}</span>;
+}
 
 const preview = (m: ChatMessage | null, meId: number) => {
   if (!m) return 'Henüz mesaj yok';
@@ -26,7 +34,7 @@ export function MessagesPage() {
   const activeId = Number(params.get('c')) || null;
   const { data: convs, setData: setConvs, error, reload } = useApi<Conversation[]>('/chat/conversations');
   const [q, setQ] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<false | 'direct' | 'group'>(false);
   const [info, setInfo] = useState(false);
   const [directError, setDirectError] = useState('');
 
@@ -82,17 +90,18 @@ export function MessagesPage() {
       <section className="glass chat-list">
         <header className="chat-list-head">
           <h2>Mesajlar</h2>
-          <button className="icon-btn" title="Yeni sohbet" onClick={() => setCreating(true)}><Plus size={18} /></button>
+          <button className="icon-btn" title="Yeni grup" onClick={() => setCreating('group')}><Users size={18} /></button>
+          <button className="icon-btn" title="Yeni sohbet" onClick={() => setCreating('direct')}><Plus size={18} /></button>
         </header>
         <label className="chat-search"><Search size={14} /><input placeholder="Sohbet ara…" aria-label="Sohbet ara" value={q} onChange={(e) => setQ(e.target.value)} /></label>
         {error && <p className="error">{error}</p>}
         {directError && <p className="error" role="alert">{directError}</p>}
-        {convs && convs.length === 0 && <p className="empty">Henüz sohbet yok. <button className="link-btn" onClick={() => setCreating(true)}>Yeni sohbet başlatın</button></p>}
+        {convs && convs.length === 0 && <p className="empty">Henüz sohbet yok. <button className="link-btn" onClick={() => setCreating('direct')}>Yeni sohbet başlatın</button> veya <button className="link-btn" onClick={() => setCreating('group')}>grup kurun</button></p>}
         <ul className="conv-list">
           {list.map((c) => (
             <li key={c.id}>
               <button className={'conv' + (c.id === activeId ? ' active' : '') + (c.unread ? ' unread' : '')} onClick={() => select(c.id)}>
-                <span className="avatar">{c.type === 'group' ? '#' : initials(conversationTitle(c, meId))}</span>
+                <ConvAvatar c={c} meId={meId} />
                 <span className="conv-body">
                   <span className="conv-top"><b>{conversationTitle(c, meId)}</b>{c.lastMessageAt && <small>{timeAgo(c.lastMessageAt)}</small>}</span>
                   <span className="conv-bottom"><small>{preview(c.lastMessage, meId)}</small>{c.unread > 0 && <span className="nav-count">{c.unread}</span>}</span>
@@ -111,7 +120,7 @@ export function MessagesPage() {
         </section>
       )}
 
-      {creating && <NewConversationModal onClose={() => setCreating(false)} onCreated={(c) => { upsert(c); setCreating(false); select(c.id); }} />}
+      {creating && <NewConversationModal initialMode={creating} onClose={() => setCreating(false)} onCreated={(c) => { upsert(c); setCreating(false); select(c.id); }} />}
       {info && active && (
         <GroupInfoModal conversation={active} onClose={() => setInfo(false)}
           onChanged={(c) => setConvs((xs) => xs && xs.map((x) => (x.id === c.id ? { ...x, ...c } : x)))}

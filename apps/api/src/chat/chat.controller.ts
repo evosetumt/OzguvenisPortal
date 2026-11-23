@@ -18,6 +18,11 @@ export class ChatController {
     return this.chat.list(u);
   }
 
+  @Get('presence')
+  presence() {
+    return this.chat.presence();
+  }
+
   @Get('unread')
   unread(@CurrentUser() u: AuthUser) {
     return this.chat.unreadTotal(u);

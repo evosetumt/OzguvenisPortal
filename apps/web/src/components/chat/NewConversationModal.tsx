@@ -10,10 +10,10 @@ import type { Conversation } from '../../lib/types-chat';
 import { Modal } from '../Modal';
 import { UserPicker } from './UserPicker';
 
-export function NewConversationModal({ onClose, onCreated }: { onClose(): void; onCreated(c: Conversation): void }) {
+export function NewConversationModal({ onClose, onCreated, initialMode = 'direct' }: { onClose(): void; onCreated(c: Conversation): void; initialMode?: 'direct' | 'group' }) {
   const { me } = useAuth();
   const { data: users } = useApi<UserRef[]>('/users/directory');
-  const [mode, setMode] = useState<'direct' | 'group'>('direct');
+  const [mode, setMode] = useState<'direct' | 'group'>(initialMode);
   const [q, setQ] = useState('');
   const [title, setTitle] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());

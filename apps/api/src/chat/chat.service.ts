@@ -78,6 +78,15 @@ export class ChatService implements OnModuleInit {
     );
   }
 
+  /** Çevrimiçi kişiler ve herkesin son görülme zamanı (mesajlardaki "çevrimiçi / son görülme"). */
+  async presence() {
+    const users = await this.prisma.user.findMany({ where: { deletedAt: null, status: 'active' }, select: { id: true, lastSeenAt: true } });
+    return {
+      online: this.rt.onlineUserIds(),
+      lastSeen: Object.fromEntries(users.map((x) => [x.id, x.lastSeenAt ? x.lastSeenAt.toISOString() : null])),
+    };
+  }
+
   /** Üye değilse kayıt yokmuş gibi davranır (404). */
   private async membership(u: AuthUser, conversationId: number) {
     const conv = await this.prisma.conversation.findFirst({

@@ -71,7 +71,10 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       // sonsuza dek "çevrimiçi" kalır. client.data.user da ancak burada atanır ki düşürme ile eşleşsin.
       if (!client.connected) return;
       client.data.user = user;
-      this.online.set(user.id, (this.online.get(user.id) ?? 0) + 1);
+      const before = this.online.get(user.id) ?? 0;
+      this.online.set(user.id, before + 1);
+      // İlk bağlantı: herkese "çevrimiçi oldu" (mesajlardaki çevrimiçi / son görülme göstergesi)
+      if (before === 0) this.server.to(AUTHED).emit('presence:changed', { userId: user.id, online: true });
     } catch {
       client.emit('auth_error', { message: 'Oturum geçersiz' });
       client.disconnect(true);
@@ -85,6 +88,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const n = (this.online.get(user.id) ?? 1) - 1;
     if (n <= 0) {
       this.online.delete(user.id);
+      const lastSeenAt = new Date();
+      this.prisma.user.update({ where: { id: user.id }, data: { lastSeenAt } }).catch(() => undefined);
+      this.server.to(AUTHED).emit('presence:changed', { userId: user.id, online: false, lastSeenAt: lastSeenAt.toISOString() });
       // Son bağlantısı kopan kullanıcı (ör. sekme kapandı): açık aramadan düşürülmesi için.
       this.events.emit('realtime.offline', user.id, { userId: user.id });
     } else this.online.set(user.id, n);
@@ -132,6 +138,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   isOnline(userId: number) {
     return this.online.has(userId);
+  }
+
+  /** Şu an en az bir açık bağlantısı olan kullanıcılar. */
+  onlineUserIds(): number[] {
+    return [...this.online.keys()];
   }
 
   /** Kullanıcıların tüm açık soketlerini kapatır (oturum iptalinde). */

@@ -10,6 +10,7 @@ import { conversationTitle, type ChatAttachment, type ChatMessage, type Conversa
 import { useCalls } from '../../lib/calls';
 import { QuickTaskButton } from '../QuickTaskButton';
 import type { CallKind } from '../../lib/types-call';
+import { lastSeenLabel, useOnline, useOnlineCount } from '../../lib/online';
 
 const PAGE = 40;
 
@@ -133,16 +134,23 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
   const other = c.type === 'direct' ? c.members.find((m) => m.id !== meId) : undefined;
   // Görev düğmesi: birebirde karşı taraf, grupta ilk diğer üye önceden seçili (formda grup üyelerinden değiştirilebilir)
   const taskTarget = other ?? c.members.find((m) => m.id !== meId);
-  const lastMine = [...messages].reverse().find((m) => m.senderId === meId && !m.deletedAt);
+  // Okundu bilgisi: her üyenin okundu imleci (lastReadMessageId) o mesaja ulaştıysa okumuştur.
+  const others = c.members.filter((m) => m.id !== meId);
+  const readCount = (id: number) => others.filter((o) => (o.lastReadMessageId ?? 0) >= id).length;
+  const otherState = useOnline(other?.id);
+  const onlineCount = useOnlineCount(others.map((o) => o.id));
+  const status = typingNames.length ? `${typingNames.join(', ')} yazıyor…`
+    : c.type === 'group' ? `${c.members.length} üye${onlineCount ? ` · ${onlineCount} çevrimiçi` : ''}`
+      : lastSeenLabel(otherState) || 'Birebir sohbet';
 
   return (
     <section className="glass chat-thread">
       <header className="chat-head">
         <button className="icon-btn chat-back" title="Geri" onClick={onBack}><ArrowLeft size={18} /></button>
-        <div className="avatar">{c.type === 'group' ? '#' : initials(conversationTitle(c, meId))}</div>
+        <div className={'avatar' + (otherState?.online ? ' is-online' : '')}>{c.type === 'group' ? '#' : initials(conversationTitle(c, meId))}</div>
         <div className="who">
           <b>{conversationTitle(c, meId)}</b>
-          <small>{typingNames.length ? `${typingNames.join(', ')} yazıyor…` : c.type === 'group' ? `${c.members.length} üye` : 'Birebir sohbet'}</small>
+          <small className={otherState?.online && !typingNames.length ? 'is-online' : ''}>{status}</small>
         </div>
         <div className="chat-call">
           <button className="btn sm" title="Sesli ara" disabled={!!calls.active} onClick={() => startCall('audio')}><Phone size={16} /><span>Sesli</span></button>
@@ -164,7 +172,7 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
             <div key={m.id}>
               {newDay && <div className="day-sep"><span>{new Date(m.createdAt).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}</span></div>}
               <Bubble m={m} mine={m.senderId === meId} showName={c.type === 'group' && !grouped && m.senderId !== meId}
-                read={!!other && m.id === lastMine?.id && (other.lastReadMessageId ?? 0) >= m.id} />
+                readBy={readCount(m.id)} memberCount={others.length} />
             </div>
           );
         })}
@@ -187,7 +195,9 @@ const COMPOSER_HINT = typeof window !== 'undefined' && window.matchMedia('(max-w
   ? 'Mesaj yazın…'
   : 'Mesaj yazın… (Enter gönderir, Shift+Enter yeni satır)';
 
-function Bubble({ m, mine, showName, read }: { m: ChatMessage; mine: boolean; showName: boolean; read: boolean }) {
+function Bubble({ m, mine, showName, readBy, memberCount }: { m: ChatMessage; mine: boolean; showName: boolean; readBy: number; memberCount: number }) {
+  const read = memberCount > 0 && readBy >= memberCount;
+  const receiptLabel = read ? 'Okundu' : readBy > 0 ? `${readBy}/${memberCount} kişi okudu` : 'Gönderildi';
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(m.body);
   const [err, setErr] = useState('');
@@ -223,7 +233,12 @@ function Bubble({ m, mine, showName, read }: { m: ChatMessage; mine: boolean; sh
         )}
         <small className="msg-meta">
           {formatTime(m.createdAt)}{m.editedAt && !m.deletedAt && ' · düzenlendi'}
-          {mine && !m.deletedAt && (read ? <CheckCheck size={13} aria-label="Okundu" /> : <Check size={13} aria-label="Gönderildi" />)}
+          {mine && !m.deletedAt && memberCount > 1 && readBy > 0 && !read && <span className="msg-readby"> · {readBy}/{memberCount}</span>}
+          {mine && !m.deletedAt && (
+            <span className={'msg-receipt' + (read ? ' read' : '')} title={receiptLabel} aria-label={receiptLabel}>
+              {readBy > 0 ? <CheckCheck size={14} /> : <Check size={14} />}
+            </span>
+          )}
         </small>
         {err && <small className="danger">{err}</small>}
       </div>
