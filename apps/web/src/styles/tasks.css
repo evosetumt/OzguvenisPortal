@@ -100,55 +100,64 @@
 .tk-card__who .avatar, .tk-card__who > :last-child { box-shadow: 0 0 0 2px var(--av-ring); }
 .tk-card__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
 
-/* ---------- Liste görünümü ----------
-   Her durum ayrı kart (başlık: renk noktası, ad, sayı rozeti, katla). Satır: tamamla kutusu | başlık + etiketler | kişi.
-   Solda öncelik rengini gösteren ince şerit. Masaüstü ve telefonda aynı düzen (yalnızca kişi adı telefonda gizli). */
-.tk-list { display: grid; gap: 12px; }
-.tk-list__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 4px; }
-.tk-list__sub { margin: 2px 0 0; color: var(--text-2); font-size: 13.5px; }
+/* ---------- Liste görünümü (Yemeksepeti sipariş listesi gibi) ----------
+   Üstte durum sekmeleri (çip şeridi, sayılı); altta her görev ayrı kart: durum etiketi + #no, büyük başlık,
+   tarih / öncelik / tür çipleri, altta tamamla kutusu ve atanan kişi. Masaüstünde kartlar ızgarada yan yana. */
+.tk-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.tk-list__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.tk-tabs { display: flex; gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.tk-tabs::-webkit-scrollbar { display: none; }
+.tk-tab {
+  display: inline-flex; align-items: center; gap: 7px; flex: none; height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--fg); font: 600 14px/1 var(--font); white-space: nowrap; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tk-tab:hover { border-color: var(--subtle); }
+.tk-tab b { min-width: 20px; padding: 2px 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.tk-tab.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.tk-tab.on b { background: rgba(255, 255, 255, 0.24); color: inherit; }
+.tk-tab.on .tk-dot { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6); }
 .seg.sm button { height: 28px; min-width: 0; padding: 0 11px; font-size: 13px; }
-.tk-group { padding: 6px; border-radius: var(--r-xl); }
-.tk-group__btn {
-  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-radius: var(--r-md);
-  background: none; color: var(--fg); font: 700 15.5px/1.2 var(--font-display); text-align: left; cursor: pointer;
-}
-.tk-group__btn:hover { background: var(--surface-2); }
-.tk-group__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tk-group__count {
-  min-width: 24px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted);
-  font: 700 12px/1.4 var(--font); text-align: center; font-variant-numeric: tabular-nums;
-}
-.tk-chev { margin-left: auto; color: var(--muted); transition: transform 0.25s var(--ease); }
-.tk-chev.closed { transform: rotate(-90deg); }
-.tk-rows { display: grid; gap: 2px; margin: 0; padding: 0 0 2px; list-style: none; }
-.tk-row {
+.tk-list__empty { margin: 0; padding: 28px 16px; border-radius: var(--r-lg); color: var(--muted); text-align: center; }
+
+.tk-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.tk-lc {
   --stripe: transparent;
-  position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 12px;
-  min-height: 60px; padding: 10px 12px 10px 16px; border-radius: var(--r-md);
+  position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 16px 12px; border-radius: var(--r-lg);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s;
 }
-.tk-row::before { content: ''; position: absolute; left: 4px; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: var(--stripe); }
-.tk-row.prio-urgent { --stripe: var(--prio-urgent); }
-.tk-row.prio-high { --stripe: var(--prio-high); }
-.tk-row.prio-low { --stripe: var(--subtle); }
-.tk-row + .tk-row::after { content: ''; position: absolute; left: 52px; right: 12px; top: -1px; height: 1px; background: var(--separator); }
-@media (hover: hover) { .tk-row:not(.empty-row):hover { background: var(--surface-2); } }
-.tk-row.empty-row { display: block; min-height: 0; padding: 6px 12px 12px 48px; color: var(--muted); font-size: 13.5px; }
-.tk-row__main {
-  display: grid; gap: 6px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+/* Öncelik: kartın sol kenarında renkli şerit */
+.tk-lc::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--stripe); }
+.tk-lc.prio-urgent { --stripe: var(--prio-urgent); }
+.tk-lc.prio-high { --stripe: var(--prio-high); }
+@media (hover: hover) { .tk-lc:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); } }
+/* Kartın tamamı görevi açar (görünmez düğme); tamamla kutusu üstte kalır */
+.tk-lc__open { position: absolute; inset: 0; z-index: 1; border: 0; border-radius: inherit; background: none; cursor: pointer; }
+.tk-lc__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tk-lc__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tk-lc__status { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--muted); font: 600 12.5px/1 var(--font); }
+.tk-lc__id { color: var(--subtle); font: 600 12.5px/1 var(--font); font-variant-numeric: tabular-nums; }
+.tk-lc__title {
+  margin: 0; color: var(--fg); font: 700 16.5px/1.3 var(--font-display); letter-spacing: -0.01em;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.tk-row__title { min-width: 0; color: var(--fg); font: 600 15px/1.3 var(--font); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; transition: color 0.15s; }
-.tk-row__main:hover .tk-row__title { color: var(--accent-ink); }
-.tk-row.is-done .tk-row__title { color: var(--subtle); text-decoration: line-through; text-decoration-thickness: 1.5px; }
-.tk-row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-.tk-row__id { color: var(--subtle); font: 600 12px/1 var(--font); font-variant-numeric: tabular-nums; }
-.tk-row__tag, .tk-row__due {
-  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 6px;
-  background: var(--surface-2); color: var(--muted); font: 600 12px/1 var(--font); white-space: nowrap;
+.tk-lc.is-done .tk-lc__title { color: var(--subtle); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.tk-lc__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tk-lc__chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 8px;
+  background: var(--surface-2); color: var(--muted); font: 600 12.5px/1 var(--font); white-space: nowrap;
 }
-.tk-row__due.late { background: var(--prio-urgent-bg); color: var(--prio-urgent); }
-.tk-row__due.today { background: var(--accent-soft); color: var(--accent-ink); }
-.tk-row__who { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 200px; }
-.tk-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; font-weight: 600; }
+.tk-lc__chip.late { background: var(--prio-urgent-bg); color: var(--prio-urgent); }
+.tk-lc__chip.today { background: var(--accent-soft); color: var(--accent-ink); }
+.tk-lc__chip.muted { background: none; padding: 0; }
+.tk-lc__chips .prio { height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; }
+.tk-lc__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--separator); }
+.tk-lc__done { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font: 600 13px/1 var(--font); cursor: pointer; }
+.tk-lc__done .tk-check { width: 22px; height: 22px; }
+.tk-lc.is-done .tk-lc__done { color: var(--success); }
+.tk-lc__who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--muted); font: 600 13px/1 var(--font); }
+.tk-lc__who > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-lc__who.muted { color: var(--subtle); }
+
 .tk-check {
   appearance: none; -webkit-appearance: none; position: relative; display: grid; place-items: center; flex: none; width: 24px; height: 24px; margin: 0;
   border: 1.75px solid var(--text-3); border-radius: 50%; background: none; cursor: pointer; transition: background 0.2s, border-color 0.2s;
@@ -173,9 +182,11 @@
   .tk-col { scroll-snap-align: start; }
 }
 @media (max-width: 900px) {
-  .tk-row { gap: 10px; padding: 10px 10px 10px 14px; }
-  .tk-row__name { display: none; }
-  .tk-row + .tk-row::after { left: 46px; }
+  /* Telefon: kartlar tek sütun, durum sekmeleri ekran kenarına kadar kayar */
+  .tk-cards { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .tk-list__bar { flex-direction: column; align-items: stretch; }
+  .tk-tabs { width: calc(100% + 28px); max-width: none; margin-inline: -14px; padding-inline: 14px; }
+  .tk-list__bar > .seg { align-self: flex-end; }
 }
 @media (max-width: 720px) {
   .tk-bar { border-radius: 24px; }

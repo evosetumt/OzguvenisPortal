@@ -28,7 +28,7 @@ export function TasksPage() {
   const [dropErr, setDropErr] = useState('');
   const [prio, setPrio] = useState<Priority | ''>('');
   const [sort, setSort] = useState<'due' | 'prio'>('due');
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  const [listStatus, setListStatus] = useState<number | 'all'>('all'); // liste görünümünde seçili durum sekmesi
   const [overCol, setOverCol] = useState<number | null>(null);
 
   useEffect(() => { const t = setTimeout(() => setQDebounced(q.trim()), 300); return () => clearTimeout(t); }, [q]);
@@ -91,6 +91,9 @@ export function TasksPage() {
 
   const canWrite = can('task.write');
   const shown = (list: Task[]) => (prio ? list.filter((t) => t.priority === prio) : list);
+  // Liste görünümü: seçili durum sekmesindeki görevler (Tümü = hepsi), seçilen sıralamayla; her kart kendi durumunu gösterir.
+  const statusMeta = new Map(columns.map((c, ci) => [c.status.id, { status: c.status, dot: dotClass(c.status, ci) }]));
+  const listed = sortRows(columns.filter((c) => listStatus === 'all' || c.status.id === listStatus).flatMap((c) => shown(c.tasks)), sort);
   const openTotal = (tasks ?? []).filter((t) => !t.status.isDone).length;
 
   /** Listede yuvarlak işaret: görevi tamamlandı kolonuna taşır veya geri alır. */
@@ -178,38 +181,38 @@ export function TasksPage() {
           })}
         </div>
       ) : (
-        // Liste: her durum ayrı kart; satırda başlık + altında etiketler (#no, tür, bitiş, öncelik), solda öncelik şeridi
+        // Liste: üstte durum sekmeleri (çip şeridi), altta her görev ayrı kart (Yemeksepeti sipariş listesi gibi)
         <section className="tk-list">
-          <header className="tk-list__head">
-            <div><h3>Tüm görevler</h3><p className="tk-list__sub">{shown(tasks ?? []).length} görev</p></div>
+          <div className="tk-list__bar">
+            <div className="tk-tabs" role="tablist" aria-label="Durum">
+              <button role="tab" aria-selected={listStatus === 'all'} className={'tk-tab' + (listStatus === 'all' ? ' on' : '')} onClick={() => setListStatus('all')}>
+                Tümü <b>{shown(tasks ?? []).length}</b>
+              </button>
+              {columns.map(({ status, tasks: all }, ci) => (
+                <button key={status.id} role="tab" aria-selected={listStatus === status.id} className={'tk-tab' + (listStatus === status.id ? ' on' : '')}
+                  onClick={() => setListStatus(status.id)}>
+                  <i className={'tk-dot ' + dotClass(status, ci)} />{status.name} <b>{shown(all).length}</b>
+                </button>
+              ))}
+            </div>
             <div className="seg sm" role="group" aria-label="Sıralama">
               <button className={sort === 'due' ? 'on' : ''} onClick={() => setSort('due')}>Bitiş</button>
               <button className={sort === 'prio' ? 'on' : ''} onClick={() => setSort('prio')}>Öncelik</button>
             </div>
-          </header>
-          {columns.map(({ status, tasks: all }, ci) => {
-            const rows = sortRows(shown(all), sort);
-            const closed = collapsed.has(status.id);
-            return (
-              <div key={status.id} className="glass tk-group">
-                <button className="tk-group__btn" aria-expanded={!closed}
-                  onClick={() => setCollapsed((s) => { const n = new Set(s); closed ? n.delete(status.id) : n.add(status.id); return n; })}>
-                  <i className={'tk-dot ' + dotClass(status, ci)} />
-                  <span className="tk-group__name">{status.name}</span>
-                  <span className="tk-group__count">{rows.length}</span>
-                  <ChevronDown size={18} className={'tk-chev' + (closed ? ' closed' : '')} />
-                </button>
-                {!closed && (
-                  <ul className="tk-rows">
-                    {rows.length === 0 && <li className="tk-row empty-row">Bu durumda görev yok</li>}
-                    {rows.map((t) => (
-                      <TaskRow key={t.id} t={t} canWrite={canWrite} onToggle={() => void toggleDone(t)} onOpen={() => setParam('id', String(t.id))} />
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
+          </div>
+          {listed.length === 0 ? (
+            <p className="glass tk-list__empty">Bu durumda görev yok.</p>
+          ) : (
+            <ul className="tk-cards">
+              {listed.map((t) => {
+                const meta = statusMeta.get(t.statusId);
+                return (
+                  <TaskListCard key={t.id} t={t} statusName={meta?.status.name ?? t.status.name} dot={meta?.dot ?? 'todo'} canWrite={canWrite}
+                    onToggle={() => void toggleDone(t)} onOpen={() => setParam('id', String(t.id))} />
+                );
+              })}
+            </ul>
+          )}
         </section>
       )}
 
@@ -240,32 +243,47 @@ function dotClass(s: TaskStatus, i: number) {
   return ['todo', 'doing', 'review'][Math.min(i, 2)];
 }
 
-interface TaskRowProps { t: Task; canWrite: boolean; onToggle(): void; onOpen(): void }
+interface TaskListCardProps { t: Task; statusName: string; dot: string; canWrite: boolean; onToggle(): void; onOpen(): void }
 
-/** Liste satırı: tamamla kutusu, başlık ve altında etiketler, sağda atanan kişi. Solda öncelik rengi şerit (tasks.css). */
-function TaskRow({ t, canWrite, onToggle, onOpen }: TaskRowProps) {
+/**
+ * Liste görünümünde tek görev kartı: üstte durum etiketi ve #no, büyük başlık, tarih/öncelik/tür çipleri,
+ * altta tamamla kutusu ve atanan kişi. Kartın tamamı görevi açar; tamamla kutusu ayrı çalışır.
+ */
+function TaskListCard({ t, statusName, dot, canWrite, onToggle, onOpen }: TaskListCardProps) {
   const done = t.status.isDone;
   const overdue = isOverdue(t.dueDate, done);
   const dueClass = overdue ? ' late' : isToday(t.dueDate) ? ' today' : '';
   return (
-    <li className={`tk-row prio-${t.priority}` + (done ? ' is-done' : '')}>
-      <input type="checkbox" className="tk-check" checked={done} disabled={!canWrite}
-        aria-label={done ? 'Tamamlanmadı olarak işaretle' : 'Tamamlandı olarak işaretle'} onChange={onToggle} />
-      <button className="tk-row__main" onClick={onOpen}>
-        <span className="tk-row__title">{t.title}</span>
-        <span className="tk-row__meta">
-          <span className="tk-row__id">#{t.id}</span>
-          {t.taskType !== 'general' && <span className="tk-row__tag">{TASK_TYPE_LABEL[t.taskType]}</span>}
-          {t.dueDate && <span className={'tk-row__due' + dueClass}><CalendarDays size={13} /> {formatDue(t.dueDate)}</span>}
-          {t.priority !== 'normal' && <Prio p={t.priority} />}
-        </span>
-      </button>
-      {t.assignee && (
-        <span className="tk-row__who" title={t.assignee.fullName}>
-          <span className="tk-row__name">{t.assignee.fullName}</span>
-          <Avatar id={t.assignee.id} name={t.assignee.fullName} size="sm" />
-        </span>
-      )}
+    <li className={`glass tk-lc prio-${t.priority}` + (done ? ' is-done' : '')}>
+      <button className="tk-lc__open" onClick={onOpen} aria-label={`${t.title} görevini aç`} />
+      <div className="tk-lc__top">
+        <span className="tk-lc__status"><i className={'tk-dot ' + dot} />{statusName}</span>
+        <span className="tk-lc__id">#{t.id}</span>
+      </div>
+      <h4 className="tk-lc__title">{t.title}</h4>
+      <div className="tk-lc__chips">
+        {t.dueDate && (
+          <span className={'tk-lc__chip' + dueClass}>
+            <CalendarDays size={14} /> {formatDue(t.dueDate)}{overdue && ' · gecikti'}
+          </span>
+        )}
+        {t.priority !== 'normal' && <Prio p={t.priority} />}
+        {t.taskType !== 'general' && <span className="tk-lc__chip">{TASK_TYPE_LABEL[t.taskType]}</span>}
+        {!t.dueDate && t.priority === 'normal' && t.taskType === 'general' && <span className="tk-lc__chip muted">Tarih yok</span>}
+      </div>
+      <div className="tk-lc__foot">
+        <label className="tk-lc__done">
+          <input type="checkbox" className="tk-check" checked={done} disabled={!canWrite} onChange={onToggle}
+            aria-label={done ? 'Tamamlanmadı olarak işaretle' : 'Tamamlandı olarak işaretle'} />
+          <span>{done ? 'Tamamlandı' : 'Tamamla'}</span>
+        </label>
+        {t.assignee ? (
+          <span className="tk-lc__who" title={t.assignee.fullName}>
+            <span>{t.assignee.fullName}</span>
+            <Avatar id={t.assignee.id} name={t.assignee.fullName} size="sm" />
+          </span>
+        ) : <span className="tk-lc__who muted">Atanmamış</span>}
+      </div>
     </li>
   );
 }
