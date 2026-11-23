@@ -22,6 +22,7 @@ const TeamPage = page(() => import('./pages/TeamPage'), 'TeamPage');
 const MessagesPage = page(() => import('./pages/MessagesPage'), 'MessagesPage');
 const MeetingsPage = page(() => import('./pages/MeetingsPage'), 'MeetingsPage');
 const FeedPage = page(() => import('./pages/FeedPage'), 'FeedPage');
+const AnnouncementsPage = page(() => import('./pages/AnnouncementsPage'), 'AnnouncementsPage');
 
 /**
  * Modül sayfası yalnızca yetkisi olana açılır (menüde gizli olsa da adres çubuğundan girilemesin).
@@ -43,6 +44,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/feed" element={<FeedPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/tasks" element={<Guard perm={'task.read'}><TasksPage /></Guard>} />
           <Route path="/calendar" element={<Guard perm={'calendar.read'}><CalendarPage /></Guard>} />
           <Route path="/insights" element={<Guard perm={'report.read'}><InsightsPage /></Guard>} />

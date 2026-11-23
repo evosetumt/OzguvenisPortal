@@ -364,3 +364,33 @@ html:has(.overlay, .sheet-overlay, .side-scrim, .fp-overlay, .meeting-room),
 html:has(.overlay, .sheet-overlay, .side-scrim, .fp-overlay, .meeting-room) body { overflow: hidden; }
 /* Katmanın içindeki kaydırma sona dayanınca arkadaki sayfaya geçmesin. */
 .modal, .drawer, .sheet, .sidebar nav, .popover, .um-pop, .fp-stage, .overlay, .sheet-overlay, .fp-overlay { overscroll-behavior: contain; }
+
+/* Duyuru şeridi (üst çubuğun altında kayan yazı) */
+.ann-ticker {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; height: 38px; margin: 0 0 var(--gap);
+  padding: 0 12px 0 0; border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+  color: var(--fg); font: 600 14px/1 var(--font); cursor: pointer; overflow: hidden; text-align: left;
+}
+.ann-label {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0 14px;
+  background: var(--accent); color: var(--accent-fg); border-radius: 999px 0 0 999px;
+}
+.ann-ticker.important .ann-label { background: var(--danger); color: #fff; }
+.ann-track { position: relative; flex: 1; min-width: 0; overflow: hidden; height: 100%; display: flex; align-items: center;
+  mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
+.ann-run { display: inline-flex; white-space: nowrap; animation: ann-scroll linear infinite; will-change: transform; }
+.ann-dup { display: inline-flex; }
+.ann-ticker:hover .ann-run, .ann-ticker:focus-visible .ann-run { animation-play-state: paused; }
+.tk-item { display: inline-flex; align-items: center; gap: 6px; padding-right: 56px; }
+.tk-item::before { content: '•'; color: var(--accent-ink); }
+.tk-item b { font-size: 11px; color: var(--danger); letter-spacing: 0.04em; }
+@keyframes ann-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ann-run { animation: none; } .ann-dup { display: none; } }
+@media (max-width: 860px) { .ann-label span { display: none; } .ann-label { padding: 0 12px; } .ann-ticker { margin-bottom: 12px; } }
+
+.ann-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ann-list li { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); }
+.ann-list li.imp { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.ann-list h4 { margin: 0 0 4px; }
+.ann-list p { margin: 0 0 6px; white-space: pre-wrap; }
+.ann-list small { color: var(--muted); }

@@ -9,15 +9,16 @@ const WRITES = new Set(['create', 'createMany', 'update', 'updateMany', 'upsert'
  * kayıtları...) duyurulmaz.
  */
 const TOPICS: Record<string, string[]> = {
-  tasks: ['Task', 'TaskStatus', 'TaskSubtask', 'TaskComment', 'TaskWatcher', 'Project', 'ProjectMember'],
+  tasks: ['Task', 'TaskStatus', 'TaskSubtask', 'TaskComment', 'TaskWatcher', 'TaskAttachment', 'Project', 'ProjectMember'],
   meetings: ['Meeting', 'MeetingNote', 'MeetingParticipant', 'Call', 'CallParticipant'],
-  calendar: ['CalendarEvent', 'CalendarEventAttendee'],
+  calendar: ['CalendarEvent', 'CalendarEventAttendee', 'CalendarEventAttachment'],
   users: ['User', 'UserRole', 'Role', 'RolePermission', 'Department'],
   erp: ['ErpCustomer', 'ErpAccountTx', 'ErpOrder', 'ErpOrderItem', 'ErpQuote', 'ErpQuoteItem', 'ErpShipment'],
   expenses: ['Expense', 'ExpenseCategory', 'ExpenseReceipt', 'ExpenseApproval'],
   process: ['ProcessDefinition', 'ProcessInstance', 'ProcessTask', 'ProcessEvent'],
   payments: ['Payment'],
-  feed: ['FeedPost', 'FeedAudience', 'FeedLike', 'FeedComment'],
+  feed: ['FeedPost', 'FeedAudience', 'FeedLike', 'FeedComment', 'FeedPostAttachment'],
+  announcements: ['Announcement', 'AnnouncementDepartment'],
   tracking: ['Vehicle', 'VehicleService', 'TrackedItem', 'TrackedItemReminder', 'TrackedItemAttachment'],
   whatsapp: ['WhatsappContact', 'WhatsappMessage'],
   settings: ['NotificationRule', 'UserNotificationPref', 'Setting'],

@@ -34,6 +34,7 @@ const PERMISSIONS: [string, string][] = [
   ['payment.manage', 'Ödeme kaydı yönet (çek, kredi kartı, vergi...)'],
   ['chat.audit', 'Sohbet arşivi: tüm sohbetler, silinen mesajlar ve geri getirme'],
   ['feed.read', 'Haber akışını görüntüle'],
+  ['announcement.manage', 'Duyuru yayınla'],
 ];
 
 // rol -> [izin kodu, kapsam]
@@ -45,7 +46,7 @@ const ROLES: Record<string, [string, string][]> = {
     ['calendar.read', 'all'], ['order.read', 'department'], ['quote.read', 'department'],
     ['shipment.read', 'department'], ['report.read', 'all'], ['expense.create', 'own'],
     ['expense.approve', 'department'], ['tracking.read', 'all'],
-    ['payment.read', 'department'], ['payment.manage', 'department'], ['feed.read', 'all'],
+    ['payment.read', 'department'], ['payment.manage', 'department'], ['feed.read', 'all'], ['announcement.manage', 'all'],
   ],
   Muhasebe: [
     ['task.read', 'own'], ['task.write', 'own'], ['calendar.read', 'own'], ['account.read', 'all'],

@@ -10,7 +10,8 @@ import { connectRealtime } from './realtime';
 const LIVE: Record<string, string[]> = {
   tasks: ['tasks'], 'task-statuses': ['tasks'], projects: ['tasks'],
   meetings: ['meetings', 'tasks'],
-  feed: ['feed'], // karta bağlı görev değişince sunucu kartı günceller (feed-events.service → touch)
+  feed: ['feed'],
+  announcements: ['announcements', 'users'], // karta bağlı görev değişince sunucu kartı günceller (feed-events.service → touch)
   calendar: ['calendar', 'meetings', 'tasks'],
   reports: ['tasks', 'payments', 'expenses', 'process', 'calendar', 'meetings', 'tracking'],
   team: ['users', 'tasks', 'meetings'],

@@ -3,7 +3,7 @@ import { storeGet, storeSet } from '../lib/storage';
 import type { FormEvent, ReactNode } from 'react';
 import {
   BarChart3, CalendarDays, CheckSquare, ClipboardCheck, FileText, Home, MessageCircle, MessageSquare, Moon, Receipt,
-  Newspaper, Search, Settings, Sun, Timer, Video, Wallet, Workflow, LogOut, Plus, LayoutGrid, X, Menu, PanelLeftClose, PanelLeftOpen, Users,
+  Megaphone, Newspaper, Search, Settings, Sun, Timer, Video, Wallet, Workflow, LogOut, Plus, LayoutGrid, X, Menu, PanelLeftClose, PanelLeftOpen, Users,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { getPrefs, getTheme, setPrefs, setTheme, subscribe } from '../lib/theme';
@@ -22,6 +22,7 @@ import { FilePreview } from './FilePreview';
 import { CallProvider } from '../lib/calls';
 import { CallLayer } from './chat/CallLayer';
 import { PushPrompt } from './PushPrompt';
+import { AnnouncementTicker } from './AnnouncementTicker';
 import { useOverlay } from '../lib/overlay-stack';
 import type { ThemePref } from '../lib/theme';
 
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { to: '/calendar', label: 'Takvim', icon: CalendarDays, perm: 'calendar.read' },
   { to: '/messages', label: 'Mesajlar', icon: MessageSquare },
   { to: '/feed', label: 'İş Akışları', icon: Newspaper },
+  { to: '/announcements', label: 'Duyurular', icon: Megaphone },
   { to: '/team', label: 'Ekip', icon: Users },
   { to: '/meetings', label: 'Toplantılar', icon: Video },
   { to: '/approvals', label: 'Onaylarım', icon: ClipboardCheck },
@@ -179,7 +181,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <NotificationsBell />
           </div>
         </header>
-        <main className="content">{children}</main>
+        <main className="content"><AnnouncementTicker />{children}</main>
         <PushPrompt />
       </div>
       {/* Telefon: alt sekme çubuğu — ana bölümler, ortada hızlı görev "+", sağda tüm bölümleri açan Menü */}

@@ -1,0 +1,16 @@
+/* Duyurular sayfası */
+.ann-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--gap); }
+.ann-card { position: relative; padding: 16px 18px; border-radius: var(--r-xl); display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.ann-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent); }
+.ann-card.imp::before { background: var(--danger); }
+.ann-card.ended { opacity: 0.6; }
+.ann-card h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; }
+.ann-card h3 svg { color: var(--accent-ink); flex: none; }
+.ann-card p { margin: 0; white-space: pre-wrap; color: var(--fg); }
+.ann-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.ann-card footer small { color: var(--muted); }
+.ann-card__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.ann-state { padding: 3px 9px; border-radius: 999px; font-weight: 700; background: var(--surface-2); color: var(--muted); }
+.ann-state.live { background: var(--accent-soft); color: var(--accent-ink); }
+.ann-aud { color: var(--muted); font-weight: 600; }
+.ann-tools { display: flex; gap: 4px; }

@@ -24,6 +24,7 @@ export const PERMISSION_CATALOG: ModuleDef[] = [
   {
     key: 'feed', label: 'Haber akışı', permissions: [
       { code: 'feed.read', label: 'Akışı görüntüle (kendi: yalnız kendi kartları · departman · tümü: herkesin akışı)', scopes: ALL },
+      { code: 'announcement.manage', label: 'Duyuru yayınla (birim seçerek, kayan yazı)', scopes: ONLY_ALL },
     ],
   },
   {
