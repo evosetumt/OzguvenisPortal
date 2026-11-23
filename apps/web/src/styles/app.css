@@ -357,3 +357,10 @@ small { color: var(--muted); }
 .lite-fx *, .lite-fx *::before, .lite-fx *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 
 .cal-head-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+/* Önde bir katman açıkken (pencere, çekmece, "Tüm bölümler", yan menü, dosya görüntüleyici, toplantı)
+   arkadaki sayfa parmakla kaymasın. */
+html:has(.overlay, .sheet-overlay, .side-scrim, .fp-overlay, .meeting-room),
+html:has(.overlay, .sheet-overlay, .side-scrim, .fp-overlay, .meeting-room) body { overflow: hidden; }
+/* Katmanın içindeki kaydırma sona dayanınca arkadaki sayfaya geçmesin. */
+.modal, .drawer, .sheet, .sidebar nav, .popover, .um-pop, .fp-stage, .overlay, .sheet-overlay, .fp-overlay { overscroll-behavior: contain; }
