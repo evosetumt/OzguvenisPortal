@@ -4,6 +4,7 @@ import { RequirePermission } from '../common/permissions.decorator';
 import { CurrentUser } from '../common/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { ProjectsService } from './projects.service';
+import { RequiredFieldsService } from '../required-fields/required-fields.service';
 import {
   CommentDto, CreateTaskDto, MoveTaskDto, ProjectDto, SubtaskDto, TaskFilesDto, UpdateProjectDto, UpdateSubtaskDto, UpdateTaskDto,
 } from './tasks.dto';
@@ -13,7 +14,7 @@ const optInt = (v?: string) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
 @Controller()
 @UseGuards(AuthGuard)
 export class TasksController {
-  constructor(private readonly tasks: TasksService, private readonly projects: ProjectsService) {}
+  constructor(private readonly tasks: TasksService, private readonly projects: ProjectsService, private readonly required: RequiredFieldsService) {}
 
   @Get('task-statuses')
   @RequirePermission('task.read')
@@ -70,13 +71,17 @@ export class TasksController {
 
   @Post('tasks')
   @RequirePermission('task.write')
-  create(@CurrentUser() u: AuthUser, @Body() dto: CreateTaskDto) {
+  async create(@CurrentUser() u: AuthUser, @Body() dto: CreateTaskDto) {
+    // Ekrandan açılan görev (modüllerin kendiliğinden açtığı görevler bu kurala tabi değil)
+    await this.required.assert('task', { description: dto.description, assigneeId: dto.assigneeId, dueDate: dto.dueDate, attachments: dto.attachmentIds });
     return this.tasks.create(u, dto);
   }
 
   @Patch('tasks/:id')
   @RequirePermission('task.write')
-  update(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTaskDto) {
+  async update(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTaskDto) {
+    // Zorunlu alan sonradan boşaltılamaz (yalnız gönderilen alanlara bakılır)
+    await this.required.assert('task', { description: dto.description, assigneeId: dto.assigneeId, dueDate: dto.dueDate }, true);
     return this.tasks.update(u, id, dto);
   }
 
@@ -121,8 +126,8 @@ export class TasksController {
 
   @Delete('tasks/:id/files/:attachmentId')
   @RequirePermission('task.read')
-  removeFile(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Param('attachmentId', ParseIntPipe) attachmentId: number) {
-    return this.tasks.removeFile(u, id, attachmentId);
+  async removeFile(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Param('attachmentId', ParseIntPipe) attachmentId: number) {
+    return this.tasks.removeFile(u, id, attachmentId, await this.required.isRequired('task', 'attachments'));
   }
 
   @Post('tasks/:id/comments')

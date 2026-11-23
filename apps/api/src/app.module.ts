@@ -21,6 +21,7 @@ import { CallsModule } from './calls/calls.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FeedModule } from './feed/feed.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { RequiredFieldsModule } from './required-fields/required-fields.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -46,6 +47,7 @@ import { HealthController } from './health/health.controller';
     CallsModule,         // Faz 5: WebRTC sesli/görüntülü arama
     MeetingsModule,      // Faz 5: toplantı (WebRTC oturumu CallsModule'den)
     PaymentsModule,      // Ödeme takibi: çek, kredi kartı, vergi/SGK → görev
+    RequiredFieldsModule, // Parametrik zorunlu alanlar (Ayarlar)
     AnnouncementsModule, // Duyurular: birimlere hedefli kayan yazı
     FeedModule,          // Haber akışı: paylaşım, beğeni/yorum, olay kartları
   ],

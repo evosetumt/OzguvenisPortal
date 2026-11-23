@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Que
 import { AuthGuard, AuthUser } from '../auth/auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { FeedService } from './feed.service';
+import { RequiredFieldsService } from '../required-fields/required-fields.service';
 import { FeedActivityDto, FeedCommentDto, FeedPostDto } from './feed.dto';
 
 const optInt = (v?: string) => {
@@ -13,7 +14,7 @@ const optInt = (v?: string) => {
 @Controller('feed')
 @UseGuards(AuthGuard)
 export class FeedController {
-  constructor(private readonly feed: FeedService) {}
+  constructor(private readonly feed: FeedService, private readonly required: RequiredFieldsService) {}
 
   @Get()
   list(@CurrentUser() u: AuthUser, @Query('before') before?: string, @Query('userId') userId?: string, @Query('customer') customer?: string, @Query('wall') wall?: string) {
@@ -21,7 +22,8 @@ export class FeedController {
   }
 
   @Post()
-  create(@CurrentUser() u: AuthUser, @Body() dto: FeedPostDto) {
+  async create(@CurrentUser() u: AuthUser, @Body() dto: FeedPostDto) {
+    if (!dto.wall) await this.required.assert('feedPost', { customerCode: dto.customerCode });
     return this.feed.create(u, dto);
   }
 

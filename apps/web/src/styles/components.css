@@ -265,3 +265,8 @@ textarea { resize: vertical; width: 100%; }
 /* Hızlı görev (Ekip / Mesajlar kartı) onayı */
 .quick-task-ok { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
 .quick-task-ok svg { color: var(--green, #2bb673); flex: none; margin-top: 2px; }
+
+/* Zorunlu alan işareti ve Ayarlar → Zorunlu alanlar */
+.req { color: var(--danger); font-style: normal; font-weight: 700; margin-left: 2px; }
+.req-forms { display: grid; gap: 16px; margin: 8px 0 12px; }
+.req-form h4 { margin: 0 0 8px; }

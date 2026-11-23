@@ -10,6 +10,7 @@ import type { CalendarItem, UserRef } from '../lib/types';
 import { Modal } from '../components/Modal';
 import { AttachmentPicker } from '../components/AttachmentPicker';
 import type { FileRef } from '../lib/types-workflow';
+import { useRequired } from '../lib/required';
 import { deviceCalendarEnabled, deviceCalendarLastSync, deviceCalendarSupported, disableDeviceCalendar, enableDeviceCalendar, syncDeviceCalendar } from '../lib/device-calendar';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -129,12 +130,15 @@ function EventForm({ item, date, users, onClose, onSaved }: {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<FileRef[]>(item?.files ?? []);
+  const req = useRequired('event');
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault();
     const startsAt = new Date(`${f.date}T${f.allDay ? '00:00' : f.start}`);
     const endsAt = new Date(`${f.endDate}T${f.allDay ? '23:59' : f.end}`);
     if (endsAt < startsAt) { setError('Bitiş, başlangıçtan önce olamaz'); return; }
+    const missing = req.check({ description: f.description, location: f.location, attendees: f.attendeeIds, attachments: files });
+    if (missing) { setError(missing); return; }
     setBusy(true); setError('');
     const body = {
       title: f.title, allDay: f.allDay, location: f.location, description: f.description, visibility: f.visibility,
@@ -174,16 +178,16 @@ function EventForm({ item, date, users, onClose, onSaved }: {
             {!f.allDay && <label>Saat<input type="time" required value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} /></label>}
           </div>
           <div className="row">
-            <label>Yer<input maxLength={200} value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} /></label>
+            <label>Yer{req.has('location') && <i className="req" aria-hidden="true">*</i>}<input maxLength={200} required={req.has('location')} value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} /></label>
             <label>Görünürlük
               <select value={f.visibility} onChange={(e) => setF({ ...f, visibility: e.target.value as typeof f.visibility })}>
                 {Object.entries(VIS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
           </div>
-          <label>Açıklama<textarea rows={2} maxLength={2000} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></label>
+          <label>Açıklama{req.has('description') && <i className="req" aria-hidden="true">*</i>}<textarea rows={2} maxLength={2000} required={req.has('description')} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></label>
           <div className="field">
-            <span>Davetliler</span>
+            <span>Davetliler{req.has('attendees') && <i className="req" aria-hidden="true">*</i>}</span>
             <div className="chips">
               {users.filter((u) => u.id !== me!.id).map((u) => (
                 <button type="button" key={u.id} className={'chip' + (f.attendeeIds.has(u.id) ? ' on' : '')} onClick={() => toggle(u.id)}>{u.fullName}</button>
@@ -192,7 +196,7 @@ function EventForm({ item, date, users, onClose, onSaved }: {
           </div>
         </fieldset>
         <div className="field">
-          <span>Ekler</span>
+          <span>Ekler{req.has('attachments') && <i className="req" aria-hidden="true">*</i>}</span>
           <AttachmentPicker files={files} canAdd={!ro} onAdd={(add) => setFiles((cur) => [...cur, ...add])}
             onRemove={ro ? undefined : (x) => setFiles((cur) => cur.filter((y) => y.id !== x.id))} />
         </div>

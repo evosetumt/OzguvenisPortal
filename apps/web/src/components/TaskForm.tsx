@@ -7,6 +7,7 @@ import { Modal } from './Modal';
 import { CustomerPicker } from './CustomerPicker';
 import { AttachmentPicker } from './AttachmentPicker';
 import type { FileRef } from '../lib/types-workflow';
+import { useRequired } from '../lib/required';
 
 interface Props {
   statuses: TaskStatus[];
@@ -33,10 +34,13 @@ export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<FileRef[]>([]);
+  const req = useRequired('task');
   const up = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    const missing = req.check({ description: f.description, assigneeId: f.assigneeId, dueDate: f.dueDate, attachments: files });
+    if (missing) { setError(missing); return; }
     setBusy(true); setError('');
     try {
       const t = await api<TaskDetail>('/tasks', json('POST', {
@@ -61,8 +65,8 @@ export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, 
     <Modal title={initialAssigneeId ? `Görev aç: ${users.find((u) => u.id === initialAssigneeId)?.fullName ?? ''}` : 'Yeni görev'} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <label>Başlık<input autoFocus required maxLength={250} value={f.title} onChange={up('title')} /></label>
-        <label>Açıklama<textarea rows={3} value={f.description} onChange={up('description')} /></label>
-        <div className="field">Ekler
+        <label>Açıklama{req.has('description') && <i className="req" aria-hidden="true">*</i>}<textarea rows={3} required={req.has('description')} value={f.description} onChange={up('description')} /></label>
+        <div className="field"><span>Ekler{req.has('attachments') && <i className="req" aria-hidden="true">*</i>}</span>
           <AttachmentPicker files={files} onAdd={(add) => setFiles((cur) => [...cur, ...add])}
             onRemove={(x) => setFiles((cur) => cur.filter((y) => y.id !== x.id))} />
         </div>
@@ -74,13 +78,13 @@ export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, 
           </label>
         </div>
         <div className="row">
-          <label>Atanan
-            <select value={f.assigneeId} onChange={up('assigneeId')}>
+          <label>Atanan{req.has('assigneeId') && <i className="req" aria-hidden="true">*</i>}
+            <select required={req.has('assigneeId')} value={f.assigneeId} onChange={up('assigneeId')}>
               <option value="">Atanmamış</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
             </select>
           </label>
-          <label>Bitiş tarihi<input type="date" value={f.dueDate} onChange={up('dueDate')} /></label>
+          <label>Bitiş tarihi{req.has('dueDate') && <i className="req" aria-hidden="true">*</i>}<input type="date" required={req.has('dueDate')} value={f.dueDate} onChange={up('dueDate')} /></label>
         </div>
         <div className="row">
           <label>Öncelik

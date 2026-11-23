@@ -7,6 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthUser } from '../auth/auth.guard';
 import { scopeOf } from '../common/scope';
 import { AnnouncementDto } from './announcements.dto';
+import { RequiredFieldsService } from '../required-fields/required-fields.service';
 
 const select = {
   id: true, title: true, body: true, important: true, allDepartments: true, startsAt: true, endsAt: true, createdAt: true,
@@ -29,6 +30,7 @@ export class AnnouncementsService implements OnModuleInit {
     private readonly events: EventsService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly required: RequiredFieldsService,
   ) {}
 
   onModuleInit() {
@@ -66,6 +68,7 @@ export class AnnouncementsService implements OnModuleInit {
   }
 
   private async normalize(dto: AnnouncementDto) {
+    await this.required.assert('announcement', { body: dto.body, endsAt: dto.endsAt });
     const all = dto.allDepartments ?? false;
     const departmentIds = all ? [] : [...new Set(dto.departmentIds ?? [])];
     if (!all && !departmentIds.length) throw new BadRequestException('Duyurunun gideceği birimleri seçin veya "Tüm şirket"i işaretleyin');

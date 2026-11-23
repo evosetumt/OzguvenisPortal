@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { json, useApi } from '../lib/data';
 import { sortedPeople, usePeople } from '../lib/people';
 import { CustomerPicker } from '../components/CustomerPicker';
+import { useRequired } from '../lib/required';
 import { FeedCard } from '../components/feed/FeedCard';
 import { FeedSide } from '../components/feed/FeedSide';
 import { ActivityModal } from '../components/feed/ActivityModal';
@@ -87,12 +88,15 @@ function Composer({ onPosted }: { onPosted(): void }) {
   const [customer, setCustomer] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const req = useRequired('feedPost');
 
   const reset = () => { setOpen(false); setBody(''); setCustomer(''); setErr(''); };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!body.trim() || busy) return;
+    const missing = req.check({ customerCode: customer });
+    if (missing) { setErr(missing); return; }
     setBusy(true); setErr('');
     try {
       await api('/feed', json('POST', { body: body.trim(), customerCode: customer.trim() || null }));
@@ -107,7 +111,7 @@ function Composer({ onPosted }: { onPosted(): void }) {
         placeholder="Bir şeyler paylaş: Müşteri görüşme notu, durum güncellemesi veya bir fikir…" />
       {open && (
         <div className="fd-composer__bar">
-          <label className="fd-cust">Firma <CustomerPicker value={customer} onChange={setCustomer} /></label>
+          <label className="fd-cust">Firma{req.has('customerCode') && <i className="req" aria-hidden="true">*</i>} <CustomerPicker value={customer} onChange={setCustomer} /></label>
           <span className="fd-spacer" />
           <button type="button" className="btn ghost sm" onClick={reset}>Vazgeç</button>
           <button className="btn primary sm" disabled={!body.trim() || busy}>Paylaş</button>

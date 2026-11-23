@@ -3,12 +3,13 @@ import { AuthGuard, AuthUser } from '../auth/auth.guard';
 import { RequirePermission } from '../common/permissions.decorator';
 import { CurrentUser } from '../common/current-user.decorator';
 import { CalendarService } from './calendar.service';
+import { RequiredFieldsService } from '../required-fields/required-fields.service';
 import { CalendarEventDto, UpdateCalendarEventDto } from './calendar.dto';
 
 @Controller('calendar')
 @UseGuards(AuthGuard)
 export class CalendarController {
-  constructor(private readonly svc: CalendarService) {}
+  constructor(private readonly svc: CalendarService, private readonly required: RequiredFieldsService) {}
 
   @Get()
   @RequirePermission('calendar.read')
@@ -19,13 +20,15 @@ export class CalendarController {
 
   @Post()
   @RequirePermission('calendar.read')
-  create(@CurrentUser() u: AuthUser, @Body() dto: CalendarEventDto) {
+  async create(@CurrentUser() u: AuthUser, @Body() dto: CalendarEventDto) {
+    await this.required.assert('event', { description: dto.description, location: dto.location, attendees: dto.attendeeIds, attachments: dto.attachmentIds });
     return this.svc.create(u, dto);
   }
 
   @Patch(':id')
   @RequirePermission('calendar.read')
-  update(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCalendarEventDto) {
+  async update(@CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCalendarEventDto) {
+    await this.required.assert('event', { description: dto.description, location: dto.location, attendees: dto.attendeeIds, attachments: dto.attachmentIds }, true);
     return this.svc.update(u, id, dto);
   }
 

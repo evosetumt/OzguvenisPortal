@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Archive, MessageCircle, Palette, ShieldCheck, Bell, BellRing, Building2, KeyRound, Plus, Receipt, RefreshCw, Users } from 'lucide-react';
+import { Archive, MessageCircle, Palette, ShieldCheck, Bell, BellRing, Building2, KeyRound, ListChecks, Plus, Receipt, RefreshCw, Users } from 'lucide-react';
 import { api, setToken } from '../lib/api';
 import { json, useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
@@ -14,6 +14,7 @@ import { RolesSettings } from '../components/settings/RolesSettings';
 import { AppearanceSettings } from '../components/settings/AppearanceSettings';
 import { MailSettings } from '../components/settings/MailSettings';
 import { WhatsappSettings } from '../components/settings/WhatsappSettings';
+import { RequiredFieldsSettings } from '../components/settings/RequiredFieldsSettings';
 
 interface Role { id: number; name: string }
 interface Department { id: number; name: string; parentId: number | null; manager: { id: number; fullName: string } | null }
@@ -34,6 +35,7 @@ export function SettingsPage() {
     { id: 'users', label: 'Kullanıcılar', icon: Users, show: can('user.manage') },
     { id: 'roles', label: 'Roller ve yetkiler', icon: ShieldCheck, show: can('user.manage') },
     { id: 'departments', label: 'Departmanlar', icon: Building2, show: can('user.manage') },
+    { id: 'required', label: 'Zorunlu alanlar', icon: ListChecks, show: can('user.manage') },
     { id: 'expense', label: 'Masraf', icon: Receipt, show: can('expense.accounting') || can('user.manage') },
     { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, show: can('whatsapp.send') },
     { id: 'erp', label: 'Netsis', icon: RefreshCw, show: can('erp.manage') },
@@ -68,6 +70,7 @@ export function SettingsPage() {
         {tab === 'users' && <UsersAdmin part="users" />}
         {tab === 'roles' && <RolesSettings />}
         {tab === 'departments' && <UsersAdmin part="departments" />}
+        {tab === 'required' && <RequiredFieldsSettings />}
         {tab === 'expense' && <ExpenseSettings />}
         {tab === 'whatsapp' && <WhatsappSettings />}
         {tab === 'erp' && <ErpSettings />}

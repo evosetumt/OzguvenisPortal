@@ -380,8 +380,11 @@ export class TasksService implements OnModuleInit {
   }
 
   /** Eki yükleyen veya görevi düzenleyebilen kaldırır (dosyanın kendisi silinmez, yalnız bağ). */
-  async removeFile(u: AuthUser, taskId: number, attachmentId: number) {
+  async removeFile(u: AuthUser, taskId: number, attachmentId: number, keepOne = false) {
     await this.findVisible(u, taskId, this.readScope(u));
+    if (keepOne && (await this.prisma.taskAttachment.count({ where: { taskId } })) <= 1) {
+      throw new BadRequestException('Ek zorunlu alan: görevde en az bir ek kalmalı');
+    }
     const link = await this.prisma.taskAttachment.findUnique({
       where: { taskId_attachmentId: { taskId, attachmentId } }, include: { attachment: { select: { uploadedById: true } } },
     });
