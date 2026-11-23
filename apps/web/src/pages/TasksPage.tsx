@@ -178,9 +178,10 @@ export function TasksPage() {
           })}
         </div>
       ) : (
-        <section className="glass tk-listcard">
-          <header className="tk-listcard__head">
-            <div><h3>Tüm görevler</h3><p className="tk-listcard__sub">{shown(tasks ?? []).length} görev</p></div>
+        // Liste: her durum ayrı kart; satırda başlık + altında etiketler (#no, tür, bitiş, öncelik), solda öncelik şeridi
+        <section className="tk-list">
+          <header className="tk-list__head">
+            <div><h3>Tüm görevler</h3><p className="tk-list__sub">{shown(tasks ?? []).length} görev</p></div>
             <div className="seg sm" role="group" aria-label="Sıralama">
               <button className={sort === 'due' ? 'on' : ''} onClick={() => setSort('due')}>Bitiş</button>
               <button className={sort === 'prio' ? 'on' : ''} onClick={() => setSort('prio')}>Öncelik</button>
@@ -190,30 +191,20 @@ export function TasksPage() {
             const rows = sortRows(shown(all), sort);
             const closed = collapsed.has(status.id);
             return (
-              <div key={status.id} className="tk-group">
+              <div key={status.id} className="glass tk-group">
                 <button className="tk-group__btn" aria-expanded={!closed}
                   onClick={() => setCollapsed((s) => { const n = new Set(s); closed ? n.delete(status.id) : n.add(status.id); return n; })}>
+                  <i className={'tk-dot ' + dotClass(status, ci)} />
+                  <span className="tk-group__name">{status.name}</span>
+                  <span className="tk-group__count">{rows.length}</span>
                   <ChevronDown size={18} className={'tk-chev' + (closed ? ' closed' : '')} />
-                  <i className={'tk-dot ' + dotClass(status, ci)} /> {status.name} <span className="tk-count">{rows.length}</span>
                 </button>
                 {!closed && (
                   <ul className="tk-rows">
-                    {rows.length === 0 && <li className="tk-row empty-row">Görev yok</li>}
-                    {rows.map((t) => {
-                      const overdue = isOverdue(t.dueDate, t.status.isDone);
-                      return (
-                        <li key={t.id} className={'tk-row' + (t.status.isDone ? ' is-done' : '')}>
-                          <input type="checkbox" className="tk-check" checked={t.status.isDone} disabled={!canWrite}
-                            aria-label={t.status.isDone ? 'Tamamlanmadı olarak işaretle' : 'Tamamlandı olarak işaretle'} onChange={() => void toggleDone(t)} />
-                          <button className="tk-row__title" onClick={() => setParam('id', String(t.id))}>
-                            {t.title}{t.taskType !== 'general' && <small> · {TASK_TYPE_LABEL[t.taskType]}</small>}
-                          </button>
-                          <span className={'tk-row__due' + (overdue ? ' late' : isToday(t.dueDate) ? ' today' : '')}>{t.dueDate && <><CalendarDays size={15} /> {formatDue(t.dueDate)}</>}</span>
-                          <span className="tk-row__prio"><Prio p={t.priority} /></span>
-                          <span className="tk-row__who">{t.assignee && <Avatar id={t.assignee.id} name={t.assignee.fullName} size="sm" title={t.assignee.fullName} />}</span>
-                        </li>
-                      );
-                    })}
+                    {rows.length === 0 && <li className="tk-row empty-row">Bu durumda görev yok</li>}
+                    {rows.map((t) => (
+                      <TaskRow key={t.id} t={t} canWrite={canWrite} onToggle={() => void toggleDone(t)} onOpen={() => setParam('id', String(t.id))} />
+                    ))}
                   </ul>
                 )}
               </div>
@@ -247,6 +238,36 @@ function sortRows(list: Task[], sort: 'due' | 'prio') {
 function dotClass(s: TaskStatus, i: number) {
   if (s.isDone) return 'done';
   return ['todo', 'doing', 'review'][Math.min(i, 2)];
+}
+
+interface TaskRowProps { t: Task; canWrite: boolean; onToggle(): void; onOpen(): void }
+
+/** Liste satırı: tamamla kutusu, başlık ve altında etiketler, sağda atanan kişi. Solda öncelik rengi şerit (tasks.css). */
+function TaskRow({ t, canWrite, onToggle, onOpen }: TaskRowProps) {
+  const done = t.status.isDone;
+  const overdue = isOverdue(t.dueDate, done);
+  const dueClass = overdue ? ' late' : isToday(t.dueDate) ? ' today' : '';
+  return (
+    <li className={`tk-row prio-${t.priority}` + (done ? ' is-done' : '')}>
+      <input type="checkbox" className="tk-check" checked={done} disabled={!canWrite}
+        aria-label={done ? 'Tamamlanmadı olarak işaretle' : 'Tamamlandı olarak işaretle'} onChange={onToggle} />
+      <button className="tk-row__main" onClick={onOpen}>
+        <span className="tk-row__title">{t.title}</span>
+        <span className="tk-row__meta">
+          <span className="tk-row__id">#{t.id}</span>
+          {t.taskType !== 'general' && <span className="tk-row__tag">{TASK_TYPE_LABEL[t.taskType]}</span>}
+          {t.dueDate && <span className={'tk-row__due' + dueClass}><CalendarDays size={13} /> {formatDue(t.dueDate)}</span>}
+          {t.priority !== 'normal' && <Prio p={t.priority} />}
+        </span>
+      </button>
+      {t.assignee && (
+        <span className="tk-row__who" title={t.assignee.fullName}>
+          <span className="tk-row__name">{t.assignee.fullName}</span>
+          <Avatar id={t.assignee.id} name={t.assignee.fullName} size="sm" />
+        </span>
+      )}
+    </li>
+  );
 }
 
 function Prio({ p }: { p: Priority }) {
