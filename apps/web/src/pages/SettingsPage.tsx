@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Archive, Banknote, MessageCircle, Palette, ShieldCheck, Bell, BellRing, Building2, KeyRound, Plus, Receipt, RefreshCw, Users } from 'lucide-react';
-import { api } from '../lib/api';
+import { Archive, MessageCircle, Palette, ShieldCheck, Bell, BellRing, Building2, KeyRound, Plus, Receipt, RefreshCw, Users } from 'lucide-react';
+import { api, setToken } from '../lib/api';
 import { json, useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { timeAgo } from '../lib/format';
@@ -9,7 +9,6 @@ import { Modal } from '../components/Modal';
 import { NotificationSettings } from '../components/settings/NotificationSettings';
 import { ErpSettings } from '../components/settings/ErpSettings';
 import { ExpenseSettings } from '../components/settings/ExpenseSettings';
-import { PaymentSettings } from '../components/settings/PaymentSettings';
 import { ChatArchive } from '../components/settings/ChatArchive';
 import { RolesSettings } from '../components/settings/RolesSettings';
 import { AppearanceSettings } from '../components/settings/AppearanceSettings';
@@ -36,7 +35,6 @@ export function SettingsPage() {
     { id: 'roles', label: 'Roller ve yetkiler', icon: ShieldCheck, show: can('user.manage') },
     { id: 'departments', label: 'Departmanlar', icon: Building2, show: can('user.manage') },
     { id: 'expense', label: 'Masraf', icon: Receipt, show: can('expense.accounting') || can('user.manage') },
-    { id: 'payment', label: 'Ödeme', icon: Banknote, show: me!.permissions['payment.manage'] === 'all' },
     { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, show: can('whatsapp.send') },
     { id: 'erp', label: 'Netsis', icon: RefreshCw, show: can('erp.manage') },
     { id: 'chat-archive', label: 'Sohbet arşivi', icon: Archive, show: can('chat.audit') },
@@ -71,7 +69,6 @@ export function SettingsPage() {
         {tab === 'roles' && <RolesSettings />}
         {tab === 'departments' && <UsersAdmin part="departments" />}
         {tab === 'expense' && <ExpenseSettings />}
-        {tab === 'payment' && <PaymentSettings />}
         {tab === 'whatsapp' && <WhatsappSettings />}
         {tab === 'erp' && <ErpSettings />}
         {tab === 'chat-archive' && <ChatArchive />}
@@ -88,7 +85,9 @@ function PasswordForm() {
     e.preventDefault();
     if (f.newPassword !== f.repeat) { setMsg({ ok: false, text: 'Yeni şifreler eşleşmiyor' }); return; }
     try {
-      await api('/auth/password', json('POST', { currentPassword: f.currentPassword, newPassword: f.newPassword }));
+      // Şifre değişince eski oturumlar (diğer cihazlar) kapanır; bu oturum sunucunun verdiği yeni jetonla sürer.
+      const r = await api<{ token?: string }>('/auth/password', json('POST', { currentPassword: f.currentPassword, newPassword: f.newPassword }));
+      if (r?.token) setToken(r.token);
       setF({ currentPassword: '', newPassword: '', repeat: '' });
       setMsg({ ok: true, text: 'Şifre değiştirildi' });
     } catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : 'Değiştirilemedi' }); }

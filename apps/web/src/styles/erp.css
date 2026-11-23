@@ -22,7 +22,9 @@
 .progress.ship { min-width: 90px; }
 .customer-link { color: var(--text); text-decoration: none; }
 .customer-link:hover span { text-decoration: underline; }
-.erp-props { margin-bottom: 8px; grid-template-columns: 110px 1fr; }
+.erp-props { margin-bottom: 8px; grid-template-columns: 110px minmax(0, 1fr); }
+/* Uzun e-posta/adres satır kırsın, panel sağa taşmasın */
+.erp-props dd { min-width: 0; overflow-wrap: anywhere; }
 .erp-props a { color: var(--accent); }
 .erp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .erp-grid h3 .push { font-weight: 700; }
@@ -52,3 +54,48 @@
 /* Fatura A4 genişliğinde basılır; önizleme penceresi buna göre geniş açılır */
 .modal.wide:has(.edoc) { width: min(1060px, calc(100vw - 32px)); max-width: none; }
 @media (max-width: 860px) { .modal.wide:has(.edoc) { width: 100%; padding: 12px; } }
+
+/* Cari Hesaplar: telefonda tablo yerine kart listesi */
+.acc-cards { display: none; list-style: none; margin: 0; padding: 8px; }
+@media (max-width: 860px) {
+  .acc-list { overflow: visible; }
+  .acc-list .acc-table { display: none; }
+  .acc-cards { display: flex; flex-direction: column; gap: 8px; }
+}
+.acc-card { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px 14px; border: 1px solid var(--sep); border-radius: 14px;
+  background: var(--glass); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.acc-card:active { background: var(--glass-strong); }
+.acc-card__top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.acc-card__top b { min-width: 0; overflow-wrap: anywhere; }
+.acc-card__top small, .acc-card__meta { color: var(--text-2); font-size: 13px; }
+.acc-card__top small { flex: none; }
+.acc-card__nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 6px; border-top: 1px solid var(--sep);
+  font-variant-numeric: tabular-nums; font-size: 13.5px; }
+.acc-card__nums > span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.acc-card__nums > span:last-child { text-align: right; }
+.acc-card__nums small { color: var(--text-2); font-size: 11.5px; }
+
+/* Cari ekstresi: telefonda her hareket bir kart (tablo sağa taşmasın). Masaüstünde tablo aynen kalır.
+   Kart: tarih | belge, açıklama, vade, (dolu olan) borç/alacak | bakiye. Tutarlar bölünmez. */
+@media (max-width: 860px) {
+  .table-wrap:has(> .statement) { overflow: visible; border-radius: 0; }
+  .statement, .statement tbody { display: block; width: 100%; }
+  .statement thead { display: none; }
+  .statement tbody { display: flex; flex-direction: column; gap: 8px; }
+  .statement tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; padding: 10px 12px;
+    border: 1px solid var(--sep); border-radius: 14px; background: var(--glass); font-variant-numeric: tabular-nums; }
+  /* components.css telefonda 4. sütundan sonrasını gizler; kartta tüm alanlar görünür. */
+  .table.statement td, .table.statement td:nth-child(n+4) { display: flex; flex-direction: column; min-width: 0; padding: 0; border: 0;
+    text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .table.statement td.num:empty { display: none; }
+  .statement td[data-label]::before { content: attr(data-label); color: var(--text-2); font-size: 11.5px; font-style: normal; }
+  .statement .st-date { font-weight: 650; }
+  .statement .st-doc { align-items: flex-end; text-align: right; }
+  .statement .st-desc { grid-column: 1 / -1; color: var(--text-2); font-size: 13px; }
+  .table.statement td.st-due { grid-column: 1 / -1; flex-direction: row; gap: 6px; align-items: baseline; font-size: 13px; }
+  .statement td.st-due::before { content: 'Vade:'; }
+  .table.statement td.num { padding-top: 6px; border-top: 1px solid var(--sep); font-size: 14px; white-space: nowrap; overflow-wrap: normal; }
+  .table.statement td.num:last-child { align-items: flex-end; text-align: right; }
+  .table.statement tr.opening td:first-child { align-self: end; }
+  .table.statement tr.opening td.num { border-top: 0; padding-top: 0; }
+}

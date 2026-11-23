@@ -3,11 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import type { AuthUser } from '../auth/auth.guard';
 import { scopeOf, startOfTodayUtc, taskScopeWhere } from '../common/scope';
+import { addLocalDays, localDateKey, startOfLocalDay, startOfLocalWeek } from '../common/local-time';
 
 const DAY = 86400000;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const avg = (xs: number[]) => (xs.length ? round1(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null);
+/** Yalnız-gün kolonların (dueDate, UTC gece yarısı) tarihi. Zaman damgaları için local-time → localDateKey. */
 const key = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Dönem metrikleri: tamamlanan, zamanında oranı, ortalama tamamlanma süresi. */
@@ -26,10 +28,11 @@ export class ReportsService {
   async tasks(u: AuthUser, days: number) {
     const scope = scopeOf(u, 'report.read');
     if (!scope) throw new ForbiddenException();
-    const today = startOfTodayUtc();
-    const end = new Date(today.getTime() + DAY); // yarın 00:00 (hariç)
-    const start = new Date(end.getTime() - days * DAY);
-    const prevStart = new Date(start.getTime() - days * DAY);
+    const today = startOfTodayUtc(); // dueDate karşılaştırmaları için
+    // Dönem sınırları completedAt/createdAt (zaman damgası) ile karşılaştırılır: yerel (İstanbul) gece yarıları.
+    const end = addLocalDays(startOfLocalDay(), 1); // yarın 00:00 (hariç)
+    const start = addLocalDays(end, -days);
+    const prevStart = addLocalDays(start, -days);
     const capacity = await this.settings.get<number>('report.workloadCapacity', 8);
 
     const rows = await this.prisma.task.findMany({
@@ -50,9 +53,9 @@ export class ReportsService {
 
     const idx = new Map<string, number>();
     const daily = Array.from({ length: days }, (_, i) => {
-      const d = new Date(start.getTime() + i * DAY);
-      idx.set(key(d), i);
-      return { date: key(d), completed: 0, created: 0, prevCompleted: 0 };
+      const d = localDateKey(addLocalDays(start, i));
+      idx.set(d, i);
+      return { date: d, completed: 0, created: 0, prevCompleted: 0 };
     });
     const cur = emptyStats();
     const prev = emptyStats();
@@ -70,15 +73,15 @@ export class ReportsService {
       const inCur = !!c && c >= start && c < end;
       const inPrev = !!c && c >= prevStart && c < start;
 
-      const ci = idx.get(key(t.createdAt));
+      const ci = idx.get(localDateKey(t.createdAt));
       if (ci !== undefined) daily[ci].created++;
       if (inCur || inPrev) {
         const s = inCur ? cur : prev;
         s.completed++;
         s.cycleDays.push((c!.getTime() - t.createdAt.getTime()) / DAY);
-        // Zamanında: bitiş gününün sonuna kadar tamamlandıysa (bitiş tarihi UTC gece yarısı saklanır)
-        if (t.dueDate) (c!.getTime() < t.dueDate.getTime() + DAY ? s.onTime++ : s.late++);
-        const di = inCur ? idx.get(key(c!)) : idx.get(key(new Date(c!.getTime() + days * DAY)));
+        // Zamanında: bitiş gününün (yerel) sonuna kadar tamamlandıysa; bitiş UTC gece yarısı saklanır, tamamlanma yerel güne çevrilir.
+        if (t.dueDate) (localDateKey(c!) <= key(t.dueDate) ? s.onTime++ : s.late++);
+        const di = idx.get(localDateKey(inCur ? c! : addLocalDays(c!, days)));
         if (di !== undefined) inCur ? daily[di].completed++ : daily[di].prevCompleted++;
       }
       if (inCur) {
@@ -120,7 +123,7 @@ export class ReportsService {
     });
     const projects = [...byProject.values()].sort((a, b) => b.completed - a.completed);
     return {
-      period: { from: key(start), to: key(today), days, scope },
+      period: { from: localDateKey(start), to: key(today), days, scope },
       capacity,
       current: statOut(cur),
       previous: statOut(prev),
@@ -141,9 +144,10 @@ export class ReportsService {
   async home(u: AuthUser) {
     const scope = scopeOf(u, 'task.read');
     if (!scope) return { week: [], thisWeek: 0, lastWeek: 0, projects: [], team: [], activity: [], scope: null };
-    const today = startOfTodayUtc();
-    const monday = new Date(today.getTime() - ((today.getUTCDay() + 6) % 7) * DAY);
-    const lastMonday = new Date(monday.getTime() - 7 * DAY);
+    const today = startOfTodayUtc(); // dueDate karşılaştırmaları için
+    // completedAt zaman damgası: hafta yerel (İstanbul) pazartesi 00:00'da başlar.
+    const monday = startOfLocalWeek();
+    const lastMonday = addLocalDays(monday, -7);
     const where = { deletedAt: null, ...taskScopeWhere(u, scope) };
 
     const [recentDone, open, projects, comments, created] = await Promise.all([
@@ -173,13 +177,13 @@ export class ReportsService {
       }),
     ]);
 
-    const week = Array.from({ length: 7 }, (_, i) => ({ date: key(new Date(monday.getTime() + i * DAY)), completed: 0 }));
+    const week = Array.from({ length: 7 }, (_, i) => ({ date: localDateKey(addLocalDays(monday, i)), completed: 0 }));
     let thisWeek = 0, lastWeek = 0;
     for (const t of recentDone) {
       const c = t.completedAt!;
       if (c >= monday) {
         thisWeek++;
-        const i = Math.floor((startOfTodayUtc(c).getTime() - monday.getTime()) / DAY);
+        const i = Math.round((startOfLocalDay(c).getTime() - monday.getTime()) / DAY);
         if (week[i]) week[i].completed++;
       } else lastWeek++;
     }

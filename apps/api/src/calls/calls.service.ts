@@ -54,6 +54,8 @@ export class CallsService implements OnModuleInit {
   /** Aramaya şu an bağlı olanlar (sinyal yetkisi buradan denetlenir; her ICE adayında veritabanına gidilmez). */
   private readonly live = new Map<number, Set<number>>();
   private readonly ringTimers = new Map<number, NodeJS.Timeout>();
+  /** Anahtar başına süreç içi kilit (tek API süreci): "açık arama var mı → yoksa oluştur" adımı iki istekte aynı anda koşmasın. */
+  private readonly locks = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -94,6 +96,22 @@ export class CallsService implements OnModuleInit {
     // Sunucu yeniden başladıysa bağlantılar koptu: açık kalmış aramaları kapat.
     const stale = await this.prisma.call.findMany({ where: { status: { in: OPEN } }, select: { id: true, status: true } });
     for (const c of stale) await this.finish(c.id, c.status === 'ringing' ? 'missed' : 'ended', { quiet: true });
+  }
+
+  /** Aynı anahtardaki işler sırayla çalışır; hata olsa da kilit bırakılır, sıra boşalınca kayıt silinir. */
+  private async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.locks.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const mine = new Promise<void>((r) => { release = r; });
+    const tail = prev.then(() => mine);
+    this.locks.set(key, tail);
+    try {
+      await prev;
+      return await fn();
+    } finally {
+      release();
+      if (this.locks.get(key) === tail) this.locks.delete(key);
+    }
   }
 
   private async load(id: number) {
@@ -152,21 +170,26 @@ export class CallsService implements OnModuleInit {
   /** Sohbetten sesli/görüntülü arama başlatır; sohbette süren arama varsa ona katılır. */
   async startInConversation(u: AuthUser, conversationId: number, kind: 'audio' | 'video') {
     const { conv, ids } = await this.chat.memberIds(u, conversationId);
-    const open = await this.prisma.call.findFirst({ where: { conversationId, status: { in: OPEN } } });
-    if (open) return this.join(u, open.id);
     const others = ids.filter((id) => id !== u.id);
-    if (!others.length) throw new BadRequestException('Sohbette aranacak kimse yok');
-
-    const now = new Date();
-    const call = await this.prisma.call.create({
-      data: {
-        kind, conversationId, startedById: u.id,
-        participants: { create: [{ userId: u.id, state: 'joined', joinedAt: now }, ...others.map((userId) => ({ userId }))] },
-      },
-      include: callInclude,
+    // İki üye aynı anda ararsa iki ayrı arama açılmasın: ikincisi ilkine katılır.
+    const r = await this.withLock(`conv:${conversationId}`, async () => {
+      const open = await this.prisma.call.findFirst({ where: { conversationId, status: { in: OPEN } }, select: { id: true } });
+      if (open) return { openId: open.id, call: null };
+      if (!others.length) throw new BadRequestException('Sohbette aranacak kimse yok');
+      const now = new Date();
+      const created = await this.prisma.call.create({
+        data: {
+          kind, conversationId, startedById: u.id,
+          participants: { create: [{ userId: u.id, state: 'joined', joinedAt: now }, ...others.map((userId) => ({ userId }))] },
+        },
+        include: callInclude,
+      });
+      this.live.set(created.id, new Set([u.id]));
+      return { openId: null, call: created };
     });
-    this.live.set(call.id, new Set([u.id]));
-    this.ringTimers.set(call.id, setTimeout(() => void this.ringTimeout(call.id), RING_MS));
+    if (!r.call) return this.join(u, r.openId!);
+    const call = r.call;
+    this.ringTimers.set(call.id, setTimeout(() => void this.ringTimeout(call.id).catch((e) => console.error(`Arama #${call.id} zil zaman aşımı işlenemedi`, e)), RING_MS));
     await this.audit.log(u.id, 'call.start', 'call', call.id, { conversationId, kind });
 
     const view = this.present(call);
@@ -189,12 +212,15 @@ export class CallsService implements OnModuleInit {
     const now = Date.now();
     if (now < m.startsAt.getTime() - JOIN_EARLY_MS) throw new BadRequestException('Toplantıya başlangıçtan en fazla 15 dakika önce katılabilirsiniz');
     if (now > m.endsAt.getTime()) throw new BadRequestException('Toplantı sona erdi');
-    let call = await this.prisma.call.findFirst({ where: { meetingId, status: { in: OPEN } } });
-    if (!call) {
-      call = await this.prisma.call.create({ data: { kind: 'video', meetingId, startedById: u.id, status: 'active', answeredAt: new Date() } });
+    // Toplantı başına tek canlı arama: aynı anda girenler ayrı aramalar açmasın.
+    const callId = await this.withLock(`meet:${meetingId}`, async () => {
+      const open = await this.prisma.call.findFirst({ where: { meetingId, status: { in: OPEN } }, select: { id: true } });
+      if (open) return open.id;
+      const call = await this.prisma.call.create({ data: { kind: 'video', meetingId, startedById: u.id, status: 'active', answeredAt: new Date() } });
       this.live.set(call.id, new Set());
-    }
-    return this.join(u, call.id);
+      return call.id;
+    });
+    return this.join(u, callId);
   }
 
   async join(u: AuthUser, id: number) {
@@ -243,7 +269,10 @@ export class CallsService implements OnModuleInit {
 
   async leave(u: AuthUser, id: number) {
     const c = await this.load(id);
+    await this.assertAccess(u, c);
     if (!OPEN.includes(c.status)) return this.present(c);
+    // Çalan aramayı yalnız arayan iptal edebilir; başkası "ayrıl" diyerek herkesin aramasını kesemesin.
+    if (c.status === 'ringing' && u.id !== c.startedById) return this.present(c);
     const joined = this.live.get(id) ?? new Set<number>();
     joined.delete(u.id);
     await this.prisma.callParticipant.updateMany({ where: { callId: id, userId: u.id, state: 'joined' }, data: { state: 'left', leftAt: new Date() } });
@@ -300,8 +329,10 @@ export class CallsService implements OnModuleInit {
     this.live.delete(id);
     const now = new Date();
     const ringing = await this.prisma.callParticipant.findMany({ where: { callId: id, state: 'ringing' }, select: { userId: true } });
+    // Koşullu kapanış: iki taraf aynı anda kapatırsa (veya zil zaman aşımı yarışırsa) özet mesajı ve bildirim iki kez gitmesin.
+    const closed = await this.prisma.call.updateMany({ where: { id, status: { in: OPEN } }, data: { status, endedAt: now } });
+    if (!closed.count) return this.present(await this.load(id));
     await this.prisma.$transaction([
-      this.prisma.call.update({ where: { id }, data: { status, endedAt: now } }),
       this.prisma.callParticipant.updateMany({ where: { callId: id, state: 'joined' }, data: { state: 'left', leftAt: now } }),
       this.prisma.callParticipant.updateMany({ where: { callId: id, state: 'ringing' }, data: { state: 'missed' } }),
     ]);

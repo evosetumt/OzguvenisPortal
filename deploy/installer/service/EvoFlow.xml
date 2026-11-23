@@ -1,0 +1,31 @@
+<!--
+  EvoFlow Portal Windows servisi (WinSW 2.x sarmalayıcısı: service\EvoFlow.exe bu dosyayı okur).
+  Node süreci API'yi + derlenmiş arayüzü 127.0.0.1:PORT üzerinde sunar; dışarıya Cloudflare Tunnel (cloudflared servisi) açar.
+  Yapılandırma ve gizli bilgiler burada DEĞİL: %ProgramData%\EvoFlow\config\evoflow.env (yalnız yöneticiler ve servis okur).
+-->
+<service>
+  <id>EvoFlow</id>
+  <name>EvoFlow Özgüveniş</name>
+  <description>EvoFlow Özgüveniş portal sunucusu: API, arayüz ve gerçek zamanlı bağlantılar.</description>
+  <executable>%BASE%\..\runtime\node.exe</executable>
+  <arguments>dist\main.js</arguments>
+  <workingdirectory>%BASE%\..\api</workingdirectory>
+  <env name="EVOFLOW_CONFIG" value="%ProgramData%\EvoFlow\config\evoflow.env" />
+  <env name="NODE_ENV" value="production" />
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <stoptimeout>20 sec</stoptimeout>
+
+  <!-- Çökerse 5 sn sonra yeniden başlat; bir saat sorunsuz çalışınca sayaç sıfırlanır. -->
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+
+  <logpath>%ProgramData%\EvoFlow\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>10</keepFiles>
+  </log>
+</service>

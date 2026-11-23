@@ -34,6 +34,7 @@ model User {
   avatarUrl             String?                 @db.NVarChar(400)
   passwordHash          String                  @db.NVarChar(120)
   status                String                  @default("active") @db.NVarChar(20) // active | disabled
+  tokenVersion          Int                     @default(0) // artınca (pasife alma, rol/parola değişimi) eski oturumlar geçersiz olur
   departmentId          Int?
   lastLoginAt           DateTime?
   createdAt             DateTime                @default(now())
@@ -80,8 +81,12 @@ model User {
   meetingParticipations MeetingParticipant[]
   messageRevisions      MessageRevision[]
   meetingNotes          MeetingNote[]
-  startedCalls          Call[]                @relation("CallStarter")
+  startedCalls          Call[]                  @relation("CallStarter")
   callParticipations    CallParticipant[]
+  feedPosts             FeedPost[]              @relation("FeedAuthor")
+  feedAudience          FeedAudience[]
+  feedLikes             FeedLike[]
+  feedComments          FeedComment[]
 }
 
 model Role {
@@ -210,6 +215,10 @@ model Task {
   @@index([statusId, sortOrder])
   @@index([assigneeId])
   @@index([dueDate])
+  @@index([createdById])
+  @@index([projectId])
+  @@index([relatedType, relatedId])
+  @@index([taskType, customerRef])
 }
 
 model TaskSubtask {
@@ -220,6 +229,8 @@ model TaskSubtask {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 model TaskComment {
@@ -230,6 +241,8 @@ model TaskComment {
   createdAt DateTime @default(now())
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([taskId])
 }
 
 model TaskWatcher {
@@ -239,6 +252,7 @@ model TaskWatcher {
   user   User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([taskId, userId])
+  @@index([userId])
 }
 
 // ---------- M4 Bildirim ----------
@@ -255,6 +269,7 @@ model Notification {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 // ---------- M8 Takvim ----------
@@ -385,6 +400,7 @@ model ErpAccountTx {
   syncedAt     DateTime  @default(now())
 
   @@index([customerCode, date])
+  @@index([dueDate])
 }
 
 model ErpOrder {
@@ -411,6 +427,9 @@ model ErpOrder {
   @@unique([kind, docNo])
   @@index([customerCode])
   @@index([date])
+  @@index([repCode, date])
+  @@index([kind, status])
+  @@index([dueDate])
 }
 
 model ErpOrderItem {
@@ -447,6 +466,7 @@ model ErpQuote {
 
   @@index([customerCode])
   @@index([date])
+  @@index([repCode, date])
 }
 
 model ErpQuoteItem {
@@ -478,6 +498,7 @@ model ErpShipment {
   @@unique([docType, docNo])
   @@index([customerCode])
   @@index([date])
+  @@index([repCode, date])
 }
 
 model ErpSyncRun {
@@ -540,6 +561,7 @@ model ExpenseReceipt {
   attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([expenseId, attachmentId])
+  @@index([attachmentId])
 }
 
 model ExpenseApproval {
@@ -617,6 +639,8 @@ model ProcessTask {
 
   @@index([status, assigneeId])
   @@index([status, candidateRole])
+  @@index([instanceId, status])
+  @@index([candidateDeptId, status])
 }
 
 model ProcessEvent {
@@ -661,6 +685,9 @@ model VehicleService {
   notes       String?   @db.NVarChar(1000)
   createdAt   DateTime  @default(now())
   vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, date])
+  @@index([nextDueDate])
 }
 
 model TrackedItem {
@@ -709,6 +736,7 @@ model TrackedItemAttachment {
   attachment    Attachment  @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([trackedItemId, attachmentId])
+  @@index([attachmentId])
 }
 
 // ---------- M10 WhatsApp Business ----------
@@ -751,7 +779,7 @@ model Conversation {
   id            Int                  @id @default(autoincrement())
   type          String               @db.NVarChar(10) // direct | group
   title         String?              @db.NVarChar(150)
-  directKey     String?              @db.NVarChar(40) // birebir sohbet: "küçükId:büyükId" (tekillik kodda denetlenir)
+  directKey     String?              @db.NVarChar(40) // birebir sohbet: "küçükId:büyükId" (tekillik: filtrelenmiş benzersiz index, migration 20261116_indexes_security)
   createdById   Int
   lastMessageAt DateTime?
   createdAt     DateTime             @default(now())
@@ -773,25 +801,29 @@ model ConversationMember {
   user              User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([conversationId, userId])
+  @@index([userId])
 }
 
 model Message {
-  id             Int          @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   conversationId Int
   senderId       Int
-  body           String       @db.NVarChar(Max)
+  body           String            @db.NVarChar(Max)
   attachmentId   Int?
   callId         Int? // arama özeti mesajı ("Sesli arama · 3 dk", "Cevapsız arama")
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime          @default(now())
   editedAt       DateTime?
   deletedAt      DateTime?
-  call           Call?        @relation(fields: [callId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  attachment     Attachment?  @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  call           Call?             @relation(fields: [callId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attachment     Attachment?       @relation(fields: [attachmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   revisions      MessageRevision[]
 
   @@index([conversationId, id])
+  @@index([attachmentId])
+  @@index([senderId])
+  @@index([callId])
 }
 
 /// Mesaj düzenlenmeden önceki metin; yönetici sohbet arşivinde görür.
@@ -922,4 +954,65 @@ model Payment {
   @@index([status, dueDate])
   @@index([departmentId])
   @@index([taskId])
+  @@index([previousId])
+}
+
+// ---------- Haber akışı ----------
+
+/// Akış kartı: kullanıcı paylaşımı (kind=post) veya modül olayından üretilen kart (task_completed, order_status ...).
+model FeedPost {
+  id           Int            @id @default(autoincrement())
+  kind         String         @default("post") @db.NVarChar(30) // post | task_completed | order_created | order_status | quote_created | shipment
+  authorId     Int? // sistem kartlarında olayı yapan kişi (Netsis olaylarında boş)
+  body         String         @db.NVarChar(4000)
+  customerCode String?        @db.NVarChar(35) // Netsis cari kodu
+  customerName String?        @db.NVarChar(200)
+  relatedType  String?        @db.NVarChar(30) // task | order | quote | shipment
+  relatedId    String?        @db.NVarChar(60)
+  relatedLabel String?        @db.NVarChar(200) // kartta turuncu gösterilen kayıt adı, ör. "SP-000123"
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  author       User?          @relation("FeedAuthor", fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  audience     FeedAudience[]
+  likes        FeedLike[]
+  comments     FeedComment[]
+
+  @@index([createdAt])
+  @@index([customerCode])
+  @@index([relatedType, relatedId])
+}
+
+/// Kartın kimin akışında olduğu. "own" kapsamlı kullanıcı yalnızca kendi satırı olan kartları görür.
+model FeedAudience {
+  postId Int
+  userId Int
+  post   FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+model FeedLike {
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([postId, userId])
+}
+
+model FeedComment {
+  id        Int       @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  body      String    @db.NVarChar(2000)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  post      FeedPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([postId])
 }

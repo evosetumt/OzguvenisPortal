@@ -68,9 +68,9 @@ export function AccountsPage() {
         {data && <small>{data.total} cari{data.total > data.items.length ? ` (ilk ${data.items.length})` : ''}</small>}
       </div>
 
-      <div className="glass table-wrap">
+      <div className="glass table-wrap acc-list">
         {error && <p className="error panel">{error}</p>}
-        <table className="table">
+        <table className="table acc-table">
           <thead><tr><th>Kod</th><th>Ünvan</th><th>İl</th><th>Plasiyer</th><th className="num">Borç</th><th className="num">Alacak</th><th className="num">Bakiye</th></tr></thead>
           <tbody>
             {data?.items.map((c) => (
@@ -86,6 +86,22 @@ export function AccountsPage() {
             ))}
           </tbody>
         </table>
+        {/* Telefonda tablo yerine kartlar (erp.css → .acc-cards) */}
+        <ul className="acc-cards">
+          {data?.items.map((c) => (
+            <li key={c.code}>
+              <button className="acc-card" onClick={() => open(c.code)}>
+                <span className="acc-card__top"><b>{c.name}</b><small>{c.code}</small></span>
+                <span className="acc-card__meta">{[c.city, c.repCode && `Plasiyer ${c.repCode}`].filter(Boolean).join(' · ') || '—'}</span>
+                <span className="acc-card__nums">
+                  <span><small>Borç</small>{money(c.debit)}</span>
+                  <span><small>Alacak</small>{money(c.credit)}</span>
+                  <span><small>Bakiye</small><b className={c.balance > 0 ? 'erp-debit' : c.balance < 0 ? 'erp-credit' : ''}>{money(c.balance)}</b></span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
         {!loading && !error && data?.items.length === 0 && <p className="empty panel">Cari bulunamadı.</p>}
       </div>
 
@@ -133,18 +149,18 @@ function CustomerDrawer({ code, onClose }: { code: string; onClose(): void }) {
               <table className="table static statement">
                 <thead><tr><th>Tarih</th><th>Belge</th><th>Açıklama</th><th>Vade</th><th className="num">Borç</th><th className="num">Alacak</th><th className="num">Bakiye</th></tr></thead>
                 <tbody>
-                  <tr className="opening"><td colSpan={6}>Devir (önceki dönem)</td><td className="num">{money(c.opening)}</td></tr>
+                  <tr className="opening"><td colSpan={6}>Devir (önceki dönem)</td><td className="num" data-label="Bakiye">{money(c.opening)}</td></tr>
                   {c.statement.map((x) => (
                     <tr key={x.id}>
-                      <td>{day(x.date)}</td>
-                      <td>{x.eDoc && x.docNo
+                      <td className="st-date">{day(x.date)}</td>
+                      <td className="st-doc">{x.eDoc && x.docNo
                         ? <button className="link-btn edoc-link" title="e-Belge önizlemesi" onClick={() => setPreview(x.docNo)}><FileText size={13} /> {x.docNo}</button>
                         : x.docNo ?? '—'}</td>
-                      <td>{x.description ?? '—'}</td>
-                      <td className={x.dueDate && x.debit > 0 && new Date(x.dueDate) < new Date() ? 'danger' : ''}>{day(x.dueDate)}</td>
-                      <td className="num">{x.debit ? money(x.debit) : ''}</td>
-                      <td className="num">{x.credit ? money(x.credit) : ''}</td>
-                      <td className="num">{money(x.balance)}</td>
+                      <td className="st-desc">{x.description ?? '—'}</td>
+                      <td className={'st-due' + (x.dueDate && x.debit > 0 && new Date(x.dueDate) < new Date() ? ' danger' : '')} data-label="Vade">{day(x.dueDate)}</td>
+                      <td className="num" data-label="Borç">{x.debit ? money(x.debit) : ''}</td>
+                      <td className="num" data-label="Alacak">{x.credit ? money(x.credit) : ''}</td>
+                      <td className="num" data-label="Bakiye">{money(x.balance)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -17,6 +17,7 @@ const TOPICS: Record<string, string[]> = {
   expenses: ['Expense', 'ExpenseCategory', 'ExpenseReceipt', 'ExpenseApproval'],
   process: ['ProcessDefinition', 'ProcessInstance', 'ProcessTask', 'ProcessEvent'],
   payments: ['Payment'],
+  feed: ['FeedPost', 'FeedAudience', 'FeedLike', 'FeedComment'],
   tracking: ['Vehicle', 'VehicleService', 'TrackedItem', 'TrackedItemReminder', 'TrackedItemAttachment'],
   whatsapp: ['WhatsappContact', 'WhatsappMessage'],
   settings: ['NotificationRule', 'UserNotificationPref', 'Setting'],

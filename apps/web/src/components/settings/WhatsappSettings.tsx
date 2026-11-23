@@ -1,6 +1,9 @@
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2, Copy, XCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { useApi } from '../../lib/data';
+import { api } from '../../lib/api';
+import { json, useApi } from '../../lib/data';
+import { useAuth } from '../../lib/auth';
 import { timeAgo } from '../../lib/format';
 import { WA_STATUS_LABEL, type WaMsgStatus, type WaStatus, type WaTemplate } from '../../lib/types-tracking';
 import '../../styles/settings.css';
@@ -23,13 +26,17 @@ const fmtPhone = (p: string) => (p.startsWith('90') && p.length === 12 ? `+90 ${
  */
 export function WhatsappSettings() {
   const [, setParams] = useSearchParams();
-  const { data: status } = useApi<WaStatus>('/whatsapp/status');
-  const { data: templates } = useApi<WaTemplate[]>('/whatsapp/templates');
+  const { can } = useAuth();
+  const { data: status, reload: reloadStatus } = useApi<WaStatus>('/whatsapp/status');
+  const { data: templates, reload: reloadTemplates } = useApi<WaTemplate[]>('/whatsapp/templates');
   const { data: people, error } = useApi<Recipient[]>('/whatsapp/recipients');
   const reachable = people?.filter((p) => p.state === 'ok').length ?? 0;
 
   return (
     <>
+      {can('notification.manage') && (
+        <WaConnectionForm onSaved={() => { void reloadStatus(); void reloadTemplates(); }} />
+      )}
       <section className="glass panel">
         <h3>WhatsApp Business
           {status && (status.configured
@@ -89,5 +96,92 @@ export function WhatsappSettings() {
         )}
       </section>
     </>
+  );
+}
+
+interface WaSettingsData {
+  phoneNumberId: string; wabaId: string; apiVersion: string; source: 'settings' | 'env' | 'none';
+  accessTokenSet: boolean; appSecretSet: boolean; verifyTokenSet: boolean;
+}
+type WaSecretKey = 'accessToken' | 'appSecret' | 'verifyToken';
+
+const SECRET_FIELDS: { key: WaSecretKey; label: string; hint: string }[] = [
+  { key: 'accessToken', label: 'Erişim anahtarı (Access token)', hint: 'Meta Business → Sistem kullanıcısı için oluşturulan kalıcı anahtar' },
+  { key: 'appSecret', label: 'Uygulama gizli anahtarı (App secret)', hint: 'Webhook imzasını doğrulamak için (Uygulama ayarları → Temel)' },
+  { key: 'verifyToken', label: 'Webhook doğrulama anahtarı (Verify token)', hint: "Kendiniz belirleyin; Meta'daki webhook ayarına da aynısını yazın" },
+];
+
+/** Meta WhatsApp Cloud API bağlantı bilgileri. Gizli alanlar sunucuda şifreli saklanır, ekrana geri gelmez. */
+function WaConnectionForm({ onSaved }: { onSaved: () => void }) {
+  const { data, setData, error } = useApi<WaSettingsData>('/whatsapp/settings');
+  const [f, setF] = useState({ phoneNumberId: '', wabaId: '', apiVersion: 'v21.0' });
+  const [secrets, setSecrets] = useState<Record<WaSecretKey, string>>({ accessToken: '', appSecret: '', verifyToken: '' });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const webhookUrl = `${location.origin}/api/whatsapp/webhook`;
+
+  useEffect(() => {
+    if (data) setF({ phoneNumberId: data.phoneNumberId, wabaId: data.wabaId, apiVersion: data.apiVersion });
+  }, [data]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setMsg(null);
+    try {
+      // Boş bırakılan gizli alanlar gönderilmez: kayıtlı değer korunur.
+      const filled = Object.fromEntries(Object.entries(secrets).filter(([, v]) => v.trim()));
+      setData(await api<WaSettingsData>('/whatsapp/settings', json('PUT', { ...f, ...filled })));
+      setSecrets({ accessToken: '', appSecret: '', verifyToken: '' });
+      setMsg({ ok: true, text: 'Kaydedildi' });
+      onSaved();
+    } catch (x) { setMsg({ ok: false, text: x instanceof Error ? x.message : 'Kaydedilemedi' }); }
+    finally { setBusy(false); }
+  };
+
+  const copyWebhook = () => {
+    void navigator.clipboard?.writeText(webhookUrl).then(
+      () => setMsg({ ok: true, text: 'Webhook adresi kopyalandı' }),
+      () => setMsg({ ok: false, text: 'Kopyalanamadı; adresi elle seçin' }),
+    );
+  };
+
+  return (
+    <section className="glass panel narrow">
+      <h3>WhatsApp bağlantısı (Meta Cloud API)</h3>
+      <p className="sub small">Bilgiler Meta for Developers → uygulamanız → WhatsApp → API Setup ekranında bulunur.</p>
+      {error && <p className="error">{error}</p>}
+      {data && (
+        <form className="form" onSubmit={submit}>
+          <label>Telefon numarası kimliği (Phone number ID)
+            <input required inputMode="numeric" pattern="[0-9]{5,30}" value={f.phoneNumberId} onChange={(e) => setF({ ...f, phoneNumberId: e.target.value })} />
+          </label>
+          <div className="row">
+            <label>İşletme hesabı kimliği (WABA ID)
+              <input inputMode="numeric" pattern="[0-9]{5,30}" placeholder="Onaylı şablonları çekmek için" value={f.wabaId} onChange={(e) => setF({ ...f, wabaId: e.target.value })} />
+            </label>
+            <label style={{ flex: '0 0 110px' }}>API sürümü
+              <input pattern="v[0-9]{1,3}\.[0-9]{1,2}" value={f.apiVersion} onChange={(e) => setF({ ...f, apiVersion: e.target.value })} />
+            </label>
+          </div>
+          {SECRET_FIELDS.map(({ key, label, hint }) => (
+            <label key={key}>{label}
+              <input type="password" autoComplete="new-password" value={secrets[key]}
+                onChange={(e) => setSecrets({ ...secrets, [key]: e.target.value })}
+                placeholder={data[`${key}Set`] ? 'Kayıtlı — değiştirmek için yazın' : ''} />
+              <span className="hint">{hint}</span>
+            </label>
+          ))}
+          <label>Webhook adresi (Meta'ya girilecek)
+            <div className="inline-form">
+              <input readOnly value={webhookUrl} onFocus={(e) => e.target.select()} />
+              <button type="button" className="btn ghost sm" onClick={copyWebhook}><Copy size={14} /> Kopyala</button>
+            </div>
+          </label>
+          {data.source === 'env' && <p className="hint">Şu an sunucu yapılandırma dosyasındaki ayarlar kullanılıyor; kaydettiğinizde bu ekrandaki ayarlar geçerli olur.</p>}
+          <div className="actions"><button className="btn primary sm" disabled={busy}>Kaydet</button></div>
+        </form>
+      )}
+      {msg && <p className={msg.ok ? 'ok' : 'error'} role="status">{msg.text}</p>}
+    </section>
   );
 }

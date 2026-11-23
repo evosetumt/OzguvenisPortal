@@ -9,6 +9,7 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { AuditService } from '../common/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { SessionService } from '../auth/session.service';
 
 const Nullable = () => ValidateIf((_, v) => v !== null && v !== undefined);
 
@@ -49,7 +50,12 @@ class UpdateDepartmentDto {
 @Controller()
 @UseGuards(AuthGuard)
 export class UsersController {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService, private readonly events: EventsService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly events: EventsService,
+    private readonly sessions: SessionService,
+  ) {}
 
   /** Görev atama ve davet seçicileri için rehber: tüm giriş yapmış kullanıcılara açık, hassas alan içermez. */
   @Get('users/directory')
@@ -101,9 +107,14 @@ export class UsersController {
   @Patch('users/:id')
   @RequirePermission('user.manage')
   async update(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
-    const u = await this.prisma.user.findFirst({ where: { id, deletedAt: null } });
+    const u = await this.prisma.user.findFirst({ where: { id, deletedAt: null }, include: { roles: { select: { roleId: true } } } });
     if (!u) throw new NotFoundException();
     if (id === me.id && dto.status === 'disabled') throw new BadRequestException('Kendi hesabınızı pasifleştiremezsiniz');
+    const oldRoles = new Set(u.roles.map((r) => r.roleId));
+    const rolesChanged = !!dto.roleIds && (dto.roleIds.length !== oldRoles.size || dto.roleIds.some((r) => !oldRoles.has(r)));
+    // Açık oturumlar düşürülür: pasifleştirme, şifre sıfırlama, rol değişikliği. Yönetici kendi rollerini değiştirirse
+    // oturumu kopmasın; auth.changed ile istemci jetonunu yeniler (yenileme izinleri veritabanından okur).
+    const revoke = (dto.status === 'disabled' && u.status !== 'disabled') || !!dto.password || (rolesChanged && id !== me.id);
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id },
@@ -115,6 +126,7 @@ export class UsersController {
           erpRepCode: dto.erpRepCode === undefined ? undefined : dto.erpRepCode?.trim() || null,
           status: dto.status,
           passwordHash: dto.password ? await bcrypt.hash(dto.password, 10) : undefined,
+          tokenVersion: revoke ? { increment: 1 } : undefined,
         },
       });
       if (dto.roleIds) {
@@ -126,6 +138,8 @@ export class UsersController {
     await this.audit.log(me.id, 'user.update', 'user', id, { ...logged, passwordChanged: !!password });
     // Rolü veya durumu değişen kullanıcının açık oturumu yetkilerini hemen yenilesin (pasifse oturumu kapanır).
     if (dto.roleIds || dto.status) this.events.emit('auth.changed', me.id, { userIds: [id] });
+    if (revoke) this.sessions.afterRevoke([id]);
+    else if (dto.status) this.sessions.forget([id]); // yeniden aktifleştirme: önbellekteki eski durum hemen düşsün
     return { ok: true };
   }
 

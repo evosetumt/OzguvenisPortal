@@ -1,6 +1,6 @@
 {
-  "name": "Özgüveniş Portal",
-  "short_name": "Özgüveniş",
+  "name": "EvoFlow Özgüveniş",
+  "short_name": "EvoFlow",
   "description": "Özgüveniş şirket portalı: görevler, takvim, onaylar, raporlar",
   "lang": "tr",
   "start_url": "./#/",

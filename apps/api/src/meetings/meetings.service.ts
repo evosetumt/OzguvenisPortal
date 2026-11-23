@@ -10,7 +10,7 @@ import { ChatService } from '../chat/chat.service';
 import { TasksService } from '../tasks/tasks.service';
 import { CallsService } from '../calls/calls.service';
 import type { AuthUser } from '../auth/auth.guard';
-import { scopeOf } from '../common/scope';
+import { scopeOf, taskReadWhere } from '../common/scope';
 import { MeetingDto, MeetingTaskDto } from './meetings.dto';
 
 const userSel = { select: { id: true, fullName: true, avatarUrl: true } } as const;
@@ -186,11 +186,11 @@ export class MeetingsService implements OnModuleInit {
     return { body: n.body, updatedAt: n.updatedAt };
   }
 
-  /** Toplantıda açılan görevler (tüm katılımcılar görür). */
+  /** Toplantıda açılan görevler (katılımcı yalnızca görebildiği görevleri görür; yönetici hepsini). */
   async meetingTasks(u: AuthUser, id: number) {
     await this.visible(u, id);
     return this.prisma.task.findMany({
-      where: { relatedType: 'meeting', relatedId: String(id), deletedAt: null },
+      where: { relatedType: 'meeting', relatedId: String(id), deletedAt: null, ...taskReadWhere(u) },
       select: {
         id: true, title: true, dueDate: true, priority: true, createdAt: true,
         status: { select: { id: true, name: true, isDone: true } }, assignee: userSel, createdBy: userSel,

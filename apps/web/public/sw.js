@@ -1,4 +1,4 @@
-/* Özgüveniş Portal service worker: Firebase Cloud Messaging bildirimleri ve bildirime tıklayınca ilgili sayfayı açma.
+/* EvoFlow Özgüveniş service worker: Firebase Cloud Messaging bildirimleri ve bildirime tıklayınca ilgili sayfayı açma.
    Bilinçli olarak önbellekleme yapmaz (yetki ve güncel veri için /api hiçbir zaman önbelleğe alınmamalı). */
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -30,7 +30,7 @@ async function handlePush(data) {
   const link = typeof data.link === 'string' && data.link.startsWith('/') ? data.link : '/';
   const actions = data.openLabel ? [{ action: 'open', title: data.openLabel }] : [];
   if (sticky) actions.push({ action: 'dismiss', title: 'Kapat' });
-  await self.registration.showNotification(data.title || 'Özgüveniş Portal', {
+  await self.registration.showNotification(data.title || 'EvoFlow Özgüveniş', {
     body: data.body || '',
     icon: 'icons/icon-192.png',
     badge: 'icons/badge-72.png',

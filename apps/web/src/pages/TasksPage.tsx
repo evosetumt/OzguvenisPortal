@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { storeGet, storeSet } from '../lib/storage';
 import { Avatar } from '../components/Avatar';
 import { useSearchParams } from 'react-router-dom';
-import { CalendarDays, Check, ChevronDown, Columns3, Flag, Folder, List, MessageSquare, Plus, Search, User, X } from 'lucide-react';
-import { api } from '../lib/api';
-import { json, useApi } from '../lib/data';
+import { CalendarDays, Check, ChevronDown, Columns3, Flag, List, MessageSquare, Plus, Search, User, X } from 'lucide-react';
+import { useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { dateKey, formatDue, initials, isOverdue, isToday, todayKey } from '../lib/format';
-import { PRIORITY_LABEL, TASK_TYPE_LABEL, type Priority, type Project, type Task, type TaskStatus, type TaskSummary, type UserRef } from '../lib/types';
+import { PRIORITY_LABEL, TASK_TYPE_LABEL, type Priority, type Task, type TaskStatus, type TaskSummary, type UserRef } from '../lib/types';
+import { moveTask, toggleTaskDone, withStatus } from '../lib/task-status';
 import { TaskForm } from '../components/TaskForm';
 import { TaskDrawer } from '../components/TaskDrawer';
 import '../styles/tasks.css';
@@ -20,8 +20,7 @@ export function TasksPage() {
   const { me, can } = useAuth();
   const [params, setParams] = useSearchParams();
   const [view, setView] = useState<View>(readView);
-  const [projectId, setProjectId] = useState(params.get('project') ?? '');
-  const [mine, setMine] = useState(false);
+  const [mine, setMine] = useState(() => params.get('mine') === '1'); // Ana sayfadaki "Geciken görev" bağlantısı ?mine=1 ile gelir
   const [q, setQ] = useState(params.get('q') ?? '');
   const [qDebounced, setQDebounced] = useState('');
   const [createIn, setCreateIn] = useState<number | null>(null);
@@ -33,18 +32,15 @@ export function TasksPage() {
   const [overCol, setOverCol] = useState<number | null>(null);
 
   useEffect(() => { const t = setTimeout(() => setQDebounced(q.trim()), 300); return () => clearTimeout(t); }, [q]);
-  useEffect(() => { setProjectId(params.get('project') ?? ''); }, [params]);
   useEffect(() => { const pq = params.get('q'); if (pq !== null) setQ(pq); }, [params]);
 
   const query = new URLSearchParams();
-  if (projectId) query.set('projectId', projectId);
   if (mine) query.set('mine', '1');
   const assigneeId = params.get('assignee'); // Analiz > İş yükü bağlantısı
   if (assigneeId) query.set('assigneeId', assigneeId);
   if (qDebounced) query.set('q', qDebounced);
 
   const { data: statuses } = useApi<TaskStatus[]>('/task-statuses');
-  const { data: projects, reload: reloadProjects } = useApi<Project[]>('/projects');
   const { data: users } = useApi<UserRef[]>('/users/directory');
   const { data: tasks, setData: setTasks, error, reload } = useApi<Task[]>(`/tasks?${query}`);
   const { data: summary, reload: reloadSummary } = useApi<TaskSummary>('/tasks/summary');
@@ -57,7 +53,7 @@ export function TasksPage() {
     setParams(p, { replace: true });
   };
 
-  const refresh = () => { void reload(); void reloadSummary(); void reloadProjects(); };
+  const refresh = () => { void reload(); void reloadSummary(); };
 
   const columns = useMemo(() => (statuses ?? []).map((s) => ({
     status: s,
@@ -77,14 +73,14 @@ export function TasksPage() {
     let index = cards.findIndex((el) => { const r = el.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
     if (index < 0) index = col.length;
 
-    const moved = tasks.find((t) => t.id === id)!;
-    col.splice(index, 0, { ...moved, statusId: status.id, status: { id: status.id, name: status.name, isDone: status.isDone } });
+    const moved = withStatus(tasks.find((t) => t.id === id)!, status);
+    col.splice(index, 0, moved);
     const order = new Map(col.map((t, i) => [t.id, i]));
     const prev = tasks;
-    setTasks(tasks.map((t) => (t.id === id ? { ...t, statusId: status.id, status: { id: status.id, name: status.name, isDone: status.isDone }, sortOrder: order.get(t.id)! } : order.has(t.id) ? { ...t, sortOrder: order.get(t.id)! } : t)));
+    setTasks(tasks.map((t) => (t.id === id ? { ...moved, sortOrder: order.get(t.id)! } : order.has(t.id) ? { ...t, sortOrder: order.get(t.id)! } : t)));
     try {
       setDropErr('');
-      await api(`/tasks/${id}/move`, json('POST', { statusId: status.id, index }));
+      await moveTask(id, status.id, index);
       void reloadSummary();
     } catch (err) {
       setTasks(prev);
@@ -94,23 +90,15 @@ export function TasksPage() {
 
 
   const canWrite = can('task.write');
-  const doneStatus = statuses?.find((s) => s.isDone);
   const shown = (list: Task[]) => (prio ? list.filter((t) => t.priority === prio) : list);
-  const projectName = projects?.find((p) => String(p.id) === projectId)?.name;
   const openTotal = (tasks ?? []).filter((t) => !t.status.isDone).length;
-  const projectCount = new Set((tasks ?? []).filter((t) => !t.status.isDone).map((t) => t.projectId ?? 0)).size;
 
   /** Listede yuvarlak işaret: görevi tamamlandı kolonuna taşır veya geri alır. */
   const toggleDone = async (t: Task) => {
-    if (!statuses || !doneStatus) return;
-    const target = t.status.isDone ? statuses.find((s) => !s.isDone)! : doneStatus;
-    const prev = tasks;
-    setTasks((tasks ?? []).map((x) => (x.id === t.id ? { ...x, statusId: target.id, status: { id: target.id, name: target.name, isDone: target.isDone } } : x)));
+    if (!tasks) return;
     try {
-      await api(`/tasks/${t.id}/move`, json('POST', { statusId: target.id, index: 0 }));
-      void reloadSummary();
+      if (await toggleTaskDone(t, statuses, tasks, setTasks)) void reloadSummary();
     } catch (err) {
-      setTasks(prev);
       setDropErr(err instanceof Error ? err.message : 'Güncellenemedi');
     }
   };
@@ -120,7 +108,7 @@ export function TasksPage() {
       <header className="tk-head">
         <div className="tk-lead">
           <h1>Görevler</h1>
-          <p className="tk-sub">{openTotal} açık iş · {projectCount} proje</p>
+          <p className="tk-sub">{openTotal} açık iş</p>
         </div>
         <dl className="tk-stats">
           <div className="glass stat"><dt>Açık</dt><dd>{summary?.open ?? '–'}</dd></div>
@@ -138,14 +126,6 @@ export function TasksPage() {
       </header>
 
       <div className="glass tk-bar">
-        <label className={'tk-chip' + (projectId ? ' on' : '')}>
-          {projectId ? <i className="tk-hue" style={{ ['--hue' as string]: projects?.find((p) => String(p.id) === projectId)?.color }} /> : <Folder size={17} />}
-          <span className="tk-chip__label">{projectName ?? 'Tüm projeler'}</span><ChevronDown size={15} />
-          <select value={projectId} onChange={(e) => setParam('project', e.target.value || null)} aria-label="Proje">
-            <option value="">Tüm projeler</option>
-            {projects?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </label>
         <button className={'tk-chip' + (mine ? ' on' : '')} aria-pressed={mine} onClick={() => setMine(!mine)}>
           <Avatar id={me!.id} name={me!.fullName} size="xs" /> Yalnızca benim
         </button>
@@ -163,7 +143,7 @@ export function TasksPage() {
         )}
         <label className="tk-find">
           <Search size={17} />
-          <input type="search" placeholder="Başlık, proje, cari kodu veya belge no ile süz" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input type="search" placeholder="Başlık, cari kodu veya belge no ile süz" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
       </div>
 
@@ -226,7 +206,6 @@ export function TasksPage() {
                           <button className="tk-row__title" onClick={() => setParam('id', String(t.id))}>
                             {t.title}{t.taskType !== 'general' && <small> · {TASK_TYPE_LABEL[t.taskType]}</small>}
                           </button>
-                          <span className="tk-row__proj">{t.project && <ProjChip p={t.project} />}</span>
                           <span className={'tk-row__due' + (overdue ? ' late' : isToday(t.dueDate) ? ' today' : '')}>{t.dueDate && <><CalendarDays size={15} /> {formatDue(t.dueDate)}</>}</span>
                           <span className="tk-row__prio"><Prio p={t.priority} /></span>
                           <span className="tk-row__who">{t.assignee && <Avatar id={t.assignee.id} name={t.assignee.fullName} size="sm" title={t.assignee.fullName} />}</span>
@@ -242,12 +221,12 @@ export function TasksPage() {
       )}
 
       {showCreate && statuses && (
-        <TaskForm projects={projects ?? []} statuses={statuses} users={users ?? []} initialStatusId={createIn || undefined}
+        <TaskForm statuses={statuses} users={users ?? []} initialStatusId={createIn || undefined}
           onClose={() => { setCreateIn(null); setParam('new', null); }}
           onCreated={(t) => { setCreateIn(null); refresh(); const p = new URLSearchParams(params); p.delete('new'); p.set('id', String(t.id)); setParams(p, { replace: true }); }} />
       )}
       {openId && statuses && (
-        <TaskDrawer key={openId} taskId={openId} projects={projects ?? []} statuses={statuses} users={users ?? []}
+        <TaskDrawer key={openId} taskId={openId} statuses={statuses} users={users ?? []}
           onClose={() => setParam('id', null)} onChanged={refresh} />
       )}
     </>
@@ -268,10 +247,6 @@ function dotClass(s: TaskStatus, i: number) {
   return ['todo', 'doing', 'review'][Math.min(i, 2)];
 }
 
-function ProjChip({ p }: { p: { name: string; color: string } }) {
-  return <span className="pchip" style={{ ['--hue' as string]: p.color }}><i /><span>{p.name}</span></span>;
-}
-
 function Prio({ p }: { p: Priority }) {
   return <span className={'prio ' + p}>{(p === 'urgent') && <Flag size={12} strokeWidth={2.4} />}{PRIORITY_LABEL[p]}</span>;
 }
@@ -283,11 +258,11 @@ function TaskCard({ t, index, draggable, dragging, onDragStart, onDragEnd, onOpe
   const pct = t.subtaskTotal ? (t.subtaskDone / t.subtaskTotal) * 100 : 0;
   return (
     <article className={'tk-card prio-' + t.priority + (dragging ? ' lifted' : '') + (t.status.isDone ? ' is-done' : '')} data-task={t.id} draggable={draggable}
-      style={{ ['--i' as string]: index, ['--hue' as string]: t.project?.color ?? 'var(--accent-ink)' }}
+      style={{ ['--i' as string]: index, ['--hue' as string]: 'var(--accent-ink)' }}
       onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(); }} onDragEnd={onDragEnd}
       onClick={onOpen} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
       <div className="tk-card__top">
-        {t.project ? <ProjChip p={t.project} /> : <span className="tk-card__ref">#{t.id}</span>}
+        <span className="tk-card__ref">#{t.id}</span>
         {t.priority !== 'low' && <Prio p={t.priority} />}
       </div>
       <div className="tk-card__title">

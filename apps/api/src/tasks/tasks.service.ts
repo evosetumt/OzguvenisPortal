@@ -6,6 +6,7 @@ import { EventsService } from '../events/events.service';
 import { AuditService } from '../common/audit.service';
 import type { AuthUser } from '../auth/auth.guard';
 import { Scope, scopeOf, startOfTodayUtc, taskScopeWhere } from '../common/scope';
+import { startOfLocalWeek } from '../common/local-time';
 import { CreateTaskDto, MoveTaskDto, UpdateTaskDto } from './tasks.dto';
 
 const userSel = { select: { id: true, fullName: true, avatarUrl: true } } as const;
@@ -111,13 +112,16 @@ export class TasksService {
     const open: Prisma.TaskWhereInput = { ...base, status: { isDone: false } };
     const today = startOfTodayUtc();
     const day = (today.getUTCDay() + 6) % 7; // pazartesi = 0
+    // dueDate yalnız gündür (UTC gece yarısı): hafta sınırı da o düzlemde.
     const weekStart = new Date(today.getTime() - day * 86400000);
     const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
+    // completedAt gerçek zaman damgası: hafta pazartesi yerel (İstanbul) gece yarısında başlar.
+    const localWeekStart = startOfLocalWeek();
     const [openCount, dueThisWeek, overdue, completedThisWeek] = await Promise.all([
       this.prisma.task.count({ where: open }),
       this.prisma.task.count({ where: { ...open, dueDate: { gte: today, lt: weekEnd } } }),
       this.prisma.task.count({ where: { ...open, dueDate: { lt: today } } }),
-      this.prisma.task.count({ where: { ...base, completedAt: { gte: weekStart } } }),
+      this.prisma.task.count({ where: { ...base, completedAt: { gte: localWeekStart } } }),
     ]);
     return { open: openCount, dueThisWeek, overdue, completedThisWeek };
   }
@@ -143,6 +147,7 @@ export class TasksService {
   async create(u: AuthUser, dto: CreateTaskDto, related?: { type: string; id: number | string }) {
     const scope = this.writeScope(u);
     if (dto.assigneeId) await this.assertCanAssign(u, scope, dto.assigneeId);
+    if (dto.projectId) await this.assertProject(dto.projectId);
     const statusId = dto.statusId ?? (await this.statuses())[0]?.id;
     if (!statusId) throw new BadRequestException('Görev durumu tanımlı değil (seed çalıştırıldı mı?)');
     const status = await this.prisma.taskStatus.findUnique({ where: { id: statusId } });
@@ -190,7 +195,10 @@ export class TasksService {
     if (dto.title !== undefined) set('title', dto.title.trim());
     if (dto.description !== undefined) set('description', dto.description);
     if (dto.priority !== undefined) set('priority', dto.priority);
-    if (dto.projectId !== undefined) set('projectId', dto.projectId);
+    if (dto.projectId !== undefined) {
+      if (dto.projectId && dto.projectId !== before.projectId) await this.assertProject(dto.projectId);
+      set('projectId', dto.projectId);
+    }
     if (dto.taskType !== undefined) set('taskType', dto.taskType);
     if (dto.customerRef !== undefined) set('customerRef', dto.customerRef);
     if (dto.erpDocNo !== undefined) set('erpDocNo', dto.erpDocNo);
@@ -221,6 +229,11 @@ export class TasksService {
     return this.get(u, id);
   }
 
+  /** İstemciden gelen projectId gerçek (silinmemiş) bir projeye mi ait: aksi halde yabancı anahtar hatası 500 dönerdi. */
+  private async assertProject(projectId: number) {
+    if (!(await this.prisma.project.count({ where: { id: projectId, deletedAt: null } }))) throw new BadRequestException('Proje bulunamadı');
+  }
+
   /** Sürükle-bırak: görevi bir kolonda belirli sıraya yerleştirir ve kolonu yeniden numaralar. */
   async move(u: AuthUser, id: number, dto: MoveTaskDto) {
     const scope = this.writeScope(u);
@@ -229,15 +242,8 @@ export class TasksService {
     if (!status) throw new BadRequestException('Geçersiz durum');
     await this.assertNoPendingDecision(before, status.isDone);
 
-    const siblings = await this.prisma.task.findMany({
-      where: { statusId: status.id, deletedAt: null, id: { not: id } },
-      select: { id: true },
-      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-    });
     // index, istemcinin gördüğü (kapsamla süzülmüş) listeye göredir; görünmeyen kartlar arada kalabilir, sıra yine tutarlıdır.
-    const ids = siblings.map((s) => s.id);
-    ids.splice(Math.min(dto.index, ids.length), 0, id);
-
+    const index = dto.index;
     const data: Prisma.TaskUncheckedUpdateInput = {};
     const diff: Record<string, [unknown, unknown]> = {};
     if (status.id !== before.statusId) {
@@ -245,9 +251,22 @@ export class TasksService {
       diff.statusId = [before.statusId, status.id];
       if (status.isDone !== before.status.isDone) data.completedAt = status.isDone ? new Date() : null;
     }
+    // Kolonu tek sorguda yeniden numarala (satır satır güncelleme kolon büyüdükçe N sorgu olurdu): silinmemiş diğer kartlar
+    // (sortOrder, id) sırasıyla 0..n-1 alır, index ve sonrasındakiler bir kayar; taşınan kart min(index, n) olur.
     await this.prisma.$transaction([
       this.prisma.task.update({ where: { id }, data }),
-      ...ids.map((tid, i) => this.prisma.task.update({ where: { id: tid }, data: { sortOrder: i } })),
+      this.prisma.$executeRaw`
+        WITH s AS (
+          SELECT sortOrder, ROW_NUMBER() OVER (ORDER BY sortOrder, id) - 1 AS rn
+          FROM [dbo].[Task] WHERE statusId = ${status.id} AND deletedAt IS NULL AND id <> ${id}
+        )
+        UPDATE s SET sortOrder = CASE WHEN rn < ${index} THEN rn ELSE rn + 1 END
+        WHERE sortOrder <> CASE WHEN rn < ${index} THEN rn ELSE rn + 1 END`,
+      this.prisma.$executeRaw`
+        UPDATE [dbo].[Task] SET sortOrder = (
+          SELECT CASE WHEN COUNT(*) < ${index} THEN COUNT(*) ELSE ${index} END
+          FROM [dbo].[Task] WHERE statusId = ${status.id} AND deletedAt IS NULL AND id <> ${id}
+        ) WHERE id = ${id}`,
     ]);
     if (Object.keys(diff).length) await this.afterChange(u, before, status, data, diff);
     return { ok: true };

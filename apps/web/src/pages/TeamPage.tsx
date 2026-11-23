@@ -5,6 +5,7 @@ import { useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { PRESENCE } from '../lib/people';
 import { Avatar } from '../components/Avatar';
+import { QuickTaskButton } from '../components/QuickTaskButton';
 import '../styles/team.css';
 
 interface Member {
@@ -107,6 +108,7 @@ export function TeamPage() {
                   : <span />}
                 <span className="tm-actions">
                   <button className="btn sm" onClick={() => open(x.id)}>Profil</button>
+                  <QuickTaskButton userId={x.id} userName={x.fullName} className="tm-msg" />
                   {x.id !== me!.id && <Link className="icon-btn sm tm-msg" title="Mesaj gönder" to={`/messages?to=${x.id}`}><MessageSquare size={15} /></Link>}
                 </span>
               </footer>

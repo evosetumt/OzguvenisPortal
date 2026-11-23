@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowUpRight, Banknote, CalendarDays, Check, CheckCircle2, ClipboardCheck, MessageSquare, MessageSquareText, Plus, Timer, Video,
+  AlertTriangle, ArrowUpRight, CalendarDays, Check, CheckCircle2, ClipboardCheck, MessageSquare, MessageSquareText, Plus, Timer, Video,
 } from 'lucide-react';
-import { api } from '../lib/api';
-import { json, useApi } from '../lib/data';
+import { useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { dateKey, formatDue, formatTime, initials, isOverdue, localKey, timeAgo, todayKey } from '../lib/format';
+import { safeAppPath } from '../lib/safe-path';
+import { toggleTaskDone } from '../lib/task-status';
 import { PRIORITY_LABEL, type CalendarItem, type Task, type TaskStatus, type TaskSummary } from '../lib/types';
 import { useUnreadMessages } from '../components/chat/useUnreadMessages';
 import '../styles/home.css';
@@ -22,7 +23,6 @@ interface HomeData {
   activity: { kind: 'completed' | 'commented' | 'created'; at: string; who: string | null; taskId: number; title: string; text: string | null }[];
 }
 interface TrackingSummary { active: number; in30: number; in7: number; expired: number }
-interface PaymentSummary { awaiting: number; in7: number; overdue: number }
 
 const greeting = () => { const h = new Date().getHours(); return h < 6 ? 'İyi geceler' : h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar'; };
 /** Etkinlik zamanı yerel saate göre: bugünse saat, değilse "Yarın 09:00" / "Cum 10:00". */
@@ -57,7 +57,6 @@ export function HomePage() {
   const { data: cal } = useApi<CalendarItem[]>(canCal ? `/calendar?from=${start.toISOString()}&to=${end.toISOString()}` : null);
   const { data: approvals } = useApi<unknown[]>('/process-tasks/mine');
   const { data: tracking } = useApi<TrackingSummary>(can('tracking.read') ? '/tracking/summary' : null);
-  const { data: payments } = useApi<PaymentSummary>(can('payment.read') || can('payment.manage') ? '/payments/summary' : null);
   const unread = useUnreadMessages(me!.id);
 
   const today = todayKey();
@@ -85,14 +84,11 @@ export function HomePage() {
   const weekPlan = weekDone + (summary?.dueThisWeek ?? 0);
 
   const toggle = async (t: Task) => {
-    const target = t.status.isDone ? statuses?.find((s) => !s.isDone) : statuses?.find((s) => s.isDone);
-    if (!target || !tasks) return;
-    const prev = tasks;
-    setTasks(tasks.map((x) => (x.id === t.id ? { ...x, statusId: target.id, status: { id: target.id, name: target.name, isDone: target.isDone }, completedAt: target.isDone ? new Date().toISOString() : null } : x)));
-    try { await api(`/tasks/${t.id}/move`, json('POST', { statusId: target.id, index: 0 })); void reloadSummary(); } catch { setTasks(prev); }
+    if (!tasks) return;
+    try { if (await toggleTaskDone(t, statuses, tasks, setTasks)) void reloadSummary(); } catch { /* liste geri alındı */ }
   };
 
-  const openEvent = (e: CalendarItem) => nav(e.link ?? '/calendar');
+  const openEvent = (e: CalendarItem) => nav(safeAppPath(e.link) ?? '/calendar');
 
   return (
     <>
@@ -117,19 +113,12 @@ export function HomePage() {
 
       <div className="home">
         <section className="glass hm-card hm-today">
-          <header className="hm-card__head"><div><h3>Bugün</h3><p className="hm-card__sub">Halkaları kapat</p></div></header>
-          <div className="rings-wrap">
-            <Rings rings={[
-              { value: todayDone, max: todayTotal, color: 'var(--ring-tasks)' },
-              { value: weekDone, max: weekPlan, color: 'var(--ring-focus)' },
-              { value: pastToday, max: todayEvents.length, color: 'var(--ring-meet)' },
-            ]} />
-            <ul className="ring-legend">
-              <li style={{ ['--c' as string]: 'var(--ring-tasks)' }}><small>Bugünkü görevler</small><b>{todayDone}<span>/ {todayTotal}</span></b></li>
-              <li style={{ ['--c' as string]: 'var(--ring-focus)' }}><small>Bu hafta</small><b>{weekDone}<span>/ {weekPlan}</span></b></li>
-              <li style={{ ['--c' as string]: 'var(--ring-meet)' }}><small>Toplantılar</small><b>{pastToday}<span>/ {todayEvents.length}</span></b></li>
-            </ul>
-          </div>
+          <header className="hm-card__head"><div><h3>Bugün</h3><p className="hm-card__sub">Günün ilerlemesi</p></div></header>
+          <ProgressBars bars={[
+            { label: 'Bugünkü görevler', value: todayDone, max: todayTotal, color: 'var(--ring-tasks)' },
+            { label: 'Bu hafta', value: weekDone, max: weekPlan, color: 'var(--ring-focus)' },
+            { label: 'Toplantılar', value: pastToday, max: todayEvents.length, color: 'var(--ring-meet)' },
+          ]} />
         </section>
 
         <section className="glass hm-card hm-next">
@@ -165,8 +154,6 @@ export function HomePage() {
             <Attn to="/approvals" icon={ClipboardCheck} hue="var(--purple)" label="Onay bekleyen" value={approvals?.length ?? 0} empty="Bekleyen onay yok" />
             <Attn to="/tasks?mine=1" icon={AlertTriangle} hue="var(--danger)" label="Geciken görev" value={summary?.overdue ?? 0} empty="Geciken görev yok" />
             <Attn to="/messages" icon={MessageSquareText} hue="var(--blue)" label="Okunmamış mesaj" value={unread} empty="Tüm mesajlar okundu" />
-            {payments && <Attn to="/payments?view=awaiting" icon={Banknote} hue="var(--orange)" label="Görevlendirme bekleyen ödeme" value={payments.awaiting} empty="Görevlendirilecek ödeme yok" />}
-            {payments && <Attn to="/payments" icon={Banknote} hue="var(--danger)" label="7 gün içinde ödeme" value={payments.in7 + payments.overdue} empty="Yaklaşan ödeme yok" />}
             {tracking && <Attn to="/tracking" icon={Timer} hue="var(--orange)" label="30 gün içinde biten sözleşme / poliçe" value={tracking.in30} empty="Yakında biten kayıt yok" />}
           </ul>
         </section>
@@ -185,7 +172,6 @@ export function HomePage() {
                     <Link to={`/tasks?id=${t.id}`} className="hm-row__main">
                       <b>{t.title}</b>
                       <span>
-                        {t.project && <span className="pchip" style={{ ['--hue' as string]: t.project.color }}><i /><span>{t.project.name}</span></span>}
                         {t.dueDate && <small className={late ? 'late' : dateKey(t.dueDate) === today ? 'today' : ''}>{formatDue(t.dueDate)}</small>}
                       </span>
                     </Link>
@@ -208,28 +194,6 @@ export function HomePage() {
           </section>
         )}
 
-        {canTasks && home && home.projects.length > 0 && (
-          <section className="glass hm-card hm-projects">
-            <header className="hm-card__head"><div><h3>Projeler</h3></div><Link to="/tasks" className="link-btn">Tümü</Link></header>
-            <ul className="proj-rows">
-              {home.projects.map((p) => (
-                <li key={p.id}>
-                  <Link to={`/tasks?project=${p.id}`} style={{ ['--hue' as string]: p.color }}>
-                    <span className="proj-ico">{p.name.slice(0, 1)}</span>
-                    <span className="proj-name"><b>{p.name}</b><small>{p.open} açık{p.overdue ? ` · ${p.overdue} geciken` : ''}{p.nextDue ? ` · sıradaki ${formatDue(p.nextDue)}` : ''}</small></span>
-                    <span className="proj-bar"><i style={{ width: `${p.progress}%` }} /></span>
-                    <b className="proj-pct">%{p.progress}</b>
-                    <span className="av-stack">
-                      {p.people.slice(0, 3).map((n) => <i key={n} className="avatar sm" title={n}>{initials(n)}</i>)}
-                      {p.peopleCount > 3 && <i className="avatar sm more">+{p.peopleCount - 3}</i>}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         {canTasks && home && <RightNow home={home} />}
       </div>
     </>
@@ -248,26 +212,22 @@ function Attn({ to, icon: Icon, hue, label, value, empty }: { to: string; icon: 
   );
 }
 
-/** İç içe ilerleme halkaları (dıştan içe). */
-function Rings({ rings }: { rings: { value: number; max: number; color: string }[] }) {
-  const size = 150, stroke = 15, gap = 4;
+/** Yatay ilerleme çubukları (bugünkü görevler, hafta, toplantılar). */
+function ProgressBars({ bars }: { bars: { label: string; value: number; max: number; color: string }[] }) {
   return (
-    <svg className="rings" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Bugünkü ilerleme halkaları">
-      {rings.map((r, i) => {
-        const rad = size / 2 - stroke / 2 - i * (stroke + gap);
-        const c = 2 * Math.PI * rad;
-        const pct = r.max ? Math.min(1, r.value / r.max) : 0;
+    <ul className="pbars">
+      {bars.map((b) => {
+        const pct = b.max ? Math.min(100, Math.round((b.value / b.max) * 100)) : 0;
         return (
-          <g key={i} transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-            <circle cx={size / 2} cy={size / 2} r={rad} fill="none" stroke={r.color} strokeOpacity={0.2} strokeWidth={stroke} />
-            {pct > 0 && (
-              <circle cx={size / 2} cy={size / 2} r={rad} fill="none" stroke={r.color} strokeWidth={stroke} strokeLinecap="round"
-                strokeDasharray={`${pct * c} ${c}`} className="ring-arc" style={{ ['--len' as string]: c }} />
-            )}
-          </g>
+          <li key={b.label} style={{ ['--c' as string]: b.color }}>
+            <div className="pbar-head"><small>{b.label}</small><b>{b.value}<span>/ {b.max}</span></b></div>
+            <div className="pbar-track" role="progressbar" aria-label={b.label} aria-valuemin={0} aria-valuemax={b.max} aria-valuenow={b.value}>
+              <i className="pbar-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </li>
         );
       })}
-    </svg>
+    </ul>
   );
 }
 

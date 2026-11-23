@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { storeGet, storeSet } from './storage';
 import { api } from './api';
 import { json } from './data';
+import { safeAppPath } from './safe-path';
 
 /**
  * Bu cihazda anlık bildirim: her yerde Firebase Cloud Messaging. Tarayıcıda FCM jetonu portalın service worker'ı
@@ -98,10 +99,17 @@ async function enableNative(): Promise<PushState> {
   let p = await PushNotifications.checkPermissions();
   if (p.receive === 'prompt' || p.receive === 'prompt-with-rationale') p = await PushNotifications.requestPermissions();
   if (p.receive !== 'granted') return 'denied';
+  const handles: { remove(): Promise<void> }[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const token = await new Promise<string>((resolve, reject) => {
-    void PushNotifications.addListener('registration', (t) => resolve(t.value));
-    void PushNotifications.addListener('registrationError', (e) => reject(new Error(e.error)));
-    void PushNotifications.register();
+    // Cevap gelmezse "Aç" düğmesi sonsuza dek beklemesin.
+    timer = setTimeout(() => reject(new Error('Bildirim kaydı zaman aşımına uğradı')), 15000);
+    void PushNotifications.addListener('registration', (t) => resolve(t.value)).then((h) => handles.push(h));
+    void PushNotifications.addListener('registrationError', (e) => reject(new Error(e.error))).then((h) => handles.push(h));
+    PushNotifications.register().catch(reject);
+  }).finally(() => {
+    clearTimeout(timer);
+    for (const h of handles) void h.remove();
   });
   await api('/notifications/devices', json('POST', { platform: Capacitor.getPlatform(), token }));
   storeSet(NATIVE_KEY, token);
@@ -112,19 +120,32 @@ async function enableNative(): Promise<PushState> {
  * Mobil uygulama açılışında bir kez çağrılır (Shell içinde, navigate ile):
  * bildirime dokununca ilgili sayfa açılır, Android geri tuşu önce geçmişte geri gider, kökte uygulamadan çıkar.
  */
-export async function initNativeApp(navigate: (path: string) => void) {
-  if (!isNative()) return;
+export async function initNativeApp(navigate: (path: string) => void, isDisposed: () => boolean = () => false): Promise<() => void> {
+  if (!isNative()) return () => undefined;
   const [{ PushNotifications }, { App }] = await Promise.all([import('@capacitor/push-notifications'), import('@capacitor/app')]);
-  await PushNotifications.addListener('pushNotificationActionPerformed', (a) => {
+  const { syncDeviceCalendar } = await import('./device-calendar');
+  // Çıkış-giriş sonrası (Shell yeniden kurulunca) dinleyiciler üst üste binmesin: kurulan her dinleyici geri sökülür.
+  const handles: { remove(): Promise<void> }[] = [];
+  const dispose = () => { for (const h of handles.splice(0)) void h.remove(); };
+  if (isDisposed()) return dispose;
+  handles.push(await PushNotifications.addListener('pushNotificationActionPerformed', (a) => {
     const link = a.notification.data?.link;
-    if (typeof link === 'string' && link.startsWith('/')) navigate(link);
-  });
-  await App.addListener('backButton', ({ canGoBack }) => {
+    const to = safeAppPath(link);
+    if (to) navigate(to);
+  }));
+  handles.push(await App.addListener('backButton', ({ canGoBack }) => {
     if (canGoBack && window.location.hash.replace(/^#/, '') !== '/') window.history.back();
     else void App.exitApp();
-  });
+  }));
+  // Cihaz takvimi açıksa açılışta ve uygulamaya her dönüşte eşitle (bkz. lib/device-calendar.ts)
+  const sync = () => void syncDeviceCalendar().catch(() => undefined);
+  handles.push(await App.addListener('resume', sync));
+  // Kurulum sürerken bileşen kaldırıldıysa hemen sök.
+  if (isDisposed()) { dispose(); return dispose; }
+  sync();
 
   await askNotificationPermission();
+  return dispose;
 }
 
 /** Uygulama açılır açılmaz (giriş ekranından önce) bildirim iznini sorar; daha önce sorulduysa sistem tekrar sormaz. */

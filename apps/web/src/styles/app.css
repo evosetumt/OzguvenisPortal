@@ -145,10 +145,19 @@ small { color: var(--text-2); }
 .btn.primary:hover { filter: brightness(1.06); }
 .btn:disabled { opacity: 0.6; cursor: default; }
 
+/* Geliştirici firma bağlantısı: grid akışının dışında, sayfanın altında (giriş kartı dikey ortada kalır). */
+.login-credit {
+  position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  text-align: center; font-size: 13px;
+}
+.login-credit a { color: var(--text-2); text-decoration: none; letter-spacing: 0.02em; }
+.login-credit a:hover, .login-credit a:focus-visible { color: var(--text); text-decoration: underline; }
 .login-wrap {
   display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 440px); align-items: center; gap: clamp(24px, 5vw, 80px);
   min-height: 100vh; min-height: 100dvh; padding: clamp(16px, 4vw, 56px) clamp(16px, 6vw, 96px); max-width: 1320px; margin: 0 auto;
   overflow-x: clip;
+  /* Alttaki firma bağlantısı (.login-credit) için yer: kısa ekranlarda karta binmesin. */
+  position: relative; padding-bottom: max(clamp(16px, 4vw, 56px), 56px);
 }
 .login-hero { position: relative; display: grid; gap: 26px; justify-items: center; text-align: center; }
 .login-hero::before {
@@ -365,6 +374,16 @@ small { color: var(--text-2); }
   background: linear-gradient(172deg, var(--sheen) 0%, transparent 34%), color-mix(in srgb, var(--glass-solid) 84%, transparent);
 }
 .lite-fx *, .lite-fx *::before, .lite-fx *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+/* Hafif mod: maskeli konik kenarlık (mask-composite) ve çok katmanlı gölge kaydırırken her karede yeniden çizilir;
+   düz ince kenar ve tek gölgeyle aynı görünüm çok daha ucuza verilir. */
+.lite-fx .glass { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14); }
+.lite-fx .glass::before { padding: 0; background: none; -webkit-mask: none; mask: none; border: 1px solid var(--rim-lo); opacity: 1; }
+/* Telefon/tablet: body'deki "background-attachment: fixed" her kaydırma karesinde tüm ekranı yeniden boyatır.
+   Duvar kâğıdı kendi katmanında sabit bir öğeye taşınır; kaydırma yalnız içeriği kaydırır. */
+@media (max-width: 860px), (pointer: coarse) {
+  body { background: none; }
+  html::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--wall); transform: translateZ(0); }
+}
 /* Telefon: içerik kaydırılınca durum çubuğunun (saat, pil) altında görünmesin */
 @media (max-width: 860px) {
   body::before {
@@ -373,3 +392,5 @@ small { color: var(--text-2); }
   }
   .lite-fx .topbar { background: var(--glass-solid); }
 }
+
+.cal-head-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }

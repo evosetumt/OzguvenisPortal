@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose(): void; children: ReactNode; wide?: boolean }) {
@@ -8,7 +9,8 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  // body'ye taşınır: .glass (backdrop-filter/transform) içindeki modal o karta hapsolmasın.
+  return createPortal(
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={'glass modal' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label={title}>
         <header className="modal-head">
@@ -17,6 +19,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
         </header>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

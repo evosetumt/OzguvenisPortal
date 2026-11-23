@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gizlilik Bildirimi – EvoFlow Özgüveniş</title>
+<style>
+  :root { --bg: #f7f8fa; --card: #ffffff; --text: #1d2330; --muted: #5b6577; --line: #e3e7ee; --accent: #2563eb; --warn-bg: #fff4d6; --warn-line: #e0a800; --warn-text: #5c4500; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11141a; --card: #1a1f28; --text: #e7eaf0; --muted: #9aa4b5; --line: #2b3240; --accent: #7aa2ff; --warn-bg: #3a2f0c; --warn-line: #c99700; --warn-text: #ffe39a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 28px 0 8px; }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); font-size: .92rem; }
+  ul { padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  .draft { background: var(--warn-bg); border: 2px solid var(--warn-line); color: var(--warn-text); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
+  .draft strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+  .ph { background: var(--warn-bg); color: var(--warn-text); padding: 0 4px; border-radius: 4px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <!-- TASLAK: Yayınlamadan önce hukuk/KVKK incelemesi yapılmalı; [köşeli parantez] içindeki alanlar doldurulmalıdır. -->
+  <div class="draft" role="note">
+    <strong>TASLAK – Hukuki inceleme bekliyor</strong>
+    Bu metin, uygulamanın teknik olarak işlediği verileri anlatan bir taslaktır. 6698 sayılı KVKK kapsamında aydınlatma metni olarak
+    kullanılmadan önce şirketin hukuk birimi / KVKK danışmanı tarafından incelenmeli; sarı işaretli alanlar doldurulmalıdır.
+  </div>
+
+  <div class="card">
+    <h1>EvoFlow Özgüveniş – Gizlilik Bildirimi</h1>
+    <p class="muted">Web portalı (evoflow.ozguvenis.com.tr) ve Android / iOS mobil uygulaması için geçerlidir. Son güncelleme: <span class="ph">[tarih]</span></p>
+
+    <h2>1. Kapsam ve veri sorumlusu</h2>
+    <p>
+      EvoFlow Özgüveniş, <span class="ph">[şirket tam unvanı]</span> (“Şirket”) tarafından yalnızca kendi çalışanları ve yetkilendirdiği
+      kişiler için işletilen bir şirket içi iş uygulamasıdır (görevler, mesajlaşma, aramalar, takvim, masraf ve süreç onayları, ERP raporları).
+      Uygulamaya herkese açık kayıt yoktur; hesaplar Şirket yöneticileri tarafından açılır.
+      Veri sorumlusu Şirket’tir. İletişim: <span class="ph">[KVKK başvuru e-postası / adresi]</span>.
+    </p>
+
+    <h2>2. İşlenen veriler</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>Veri</th><th>Ne için</th></tr>
+      <tr><td><b>Hesap bilgileri:</b> ad soyad, iş e-postası, telefon (varsa), unvan, departman, rol ve yetkiler, profil fotoğrafı, parola özeti (parolanın kendisi saklanmaz), son giriş zamanı, durum (çevrimiçi/odak/toplantıda vb.), görünüm tercihleri</td><td>Giriş, yetkilendirme, ekip içinde kişilerin tanınması</td></tr>
+      <tr><td><b>İş kayıtları:</b> projeler, görevler, alt görevler, yorumlar, takvim etkinlikleri ve katılımcılar, toplantılar ve toplantı notları, ödeme takibi, masraflar ve onayları, süreç (iş akışı) adımları, sözleşme/sigorta/araç takip kayıtları ve hatırlatmaları, şirket araçları ve bakım kayıtları</td><td>Uygulamanın temel işlevleri</td></tr>
+      <tr><td><b>Mesajlar:</b> birebir ve grup sohbet mesajları, düzenlenen mesajların önceki halleri, okundu bilgisi</td><td>Şirket içi iletişim</td></tr>
+      <tr><td><b>Dosyalar ve ekler:</b> mesajlara, masraflara (fiş/fatura fotoğrafı), takip kayıtlarına eklenen dosyalar ve profil fotoğrafı</td><td>Kayıtlara belge eklenmesi</td></tr>
+      <tr><td><b>Sesli/görüntülü arama:</b> arama ve katılımcı kayıtları (kim, ne zaman, ne kadar süre). Ses ve görüntü cihazlar arasında doğrudan (WebRTC, şifreli) iletilir; sunucu yalnızca bağlantı kurulumu (sinyalleşme) bilgisini aktarır ve <b>arama içeriğini kaydetmez</b></td><td>Arama ve toplantılar</td></tr>
+      <tr><td><b>Bildirim jetonu:</b> cihazınızın anlık bildirim (FCM/APNs) jetonu ve platformu (web/android/ios)</td><td>Görev, mesaj, onay vb. bildirimlerinin gönderilmesi</td></tr>
+      <tr><td><b>ERP (Netsis) verileri</b> – yalnızca yetkili kullanıcılar ve satış temsilcileri (plasiyer) için: cari hesaplar (firma adı, vergi bilgileri, iletişim, adres, bakiye), cari hareketler, siparişler, teklifler, sevkiyatlar. Satış temsilcisi kendi plasiyer koduna bağlı kayıtları görür</td><td>Satış ve tahsilat takibi, raporlar</td></tr>
+      <tr><td><b>İşlem kayıtları:</b> kim hangi kaydı ne zaman değiştirdi (değişiklik özeti) ve IP adresi</td><td>Güvenlik, denetim ve hata ayıklama</td></tr>
+      <tr><td><b>WhatsApp bildirimleri</b> (Şirket bu özelliği açtıysa): telefon numarası, gönderilen bildirim şablonları ve teslim durumu, bildirimlere verilen yanıtlar / “DUR” talepleri</td><td>Görev bildirimlerinin WhatsApp ile iletilmesi</td></tr>
+    </table>
+    </div>
+
+    <h2>3. Mobil uygulamanın cihazınızda kullandığı izinler</h2>
+    <ul>
+      <li><b>Kamera ve mikrofon:</b> yalnızca sesli/görüntülü arama veya toplantıya katıldığınızda ve fotoğraf çekerek dosya eklediğinizde kullanılır.</li>
+      <li><b>Fotoğraflar / dosyalar:</b> yalnızca sizin seçtiğiniz dosyalar yüklenir; galeriniz taranmaz.</li>
+      <li><b>Takvim (isteğe bağlı):</b> Ayarlar’dan açarsanız, portal takviminizdeki kayıtlar cihazınızda ayrı bir “Özgüveniş” takvimine yazılır. Bu eşitleme tek yönlüdür ve cihazınızda gerçekleşir; diğer takvimlerinizdeki etkinlikler okunmaz, değiştirilmez ve sunucuya gönderilmez. Kapattığınızda “Özgüveniş” takvimi cihazdan silinir.</li>
+      <li><b>Bildirimler:</b> izin verirseniz anlık bildirim gösterilir.</li>
+      <li>Uygulama <b>konum</b>, rehber veya cihaz tanımlayıcısı (reklam kimliği vb.) toplamaz; reklam ve izleme (tracking) amaçlı üçüncü taraf yazılım içermez.</li>
+    </ul>
+    <p>Oturum jetonu ve bazı tercihler (ör. tema, takvim eşitleme durumu) cihazınızdaki uygulama deposunda tutulur.</p>
+
+    <h2>4. Verilerin saklandığı yer ve aktarımlar</h2>
+    <ul>
+      <li>Veriler Şirket’in kendi sunucusunda (<span class="ph">[konum, ör. Şirket merkezi, Türkiye]</span>) tutulur.</li>
+      <li><b>Cloudflare:</b> portala internetten erişim Cloudflare (Cloudflare, Inc.) ağı üzerinden, TLS ile şifreli olarak sağlanır; trafik bu altyapıdan geçer.</li>
+      <li><b>Google Firebase Cloud Messaging</b> (ve iOS’ta Apple Push Notification service): anlık bildirimlerin başlığı, kısa metni ve uygulama içi bağlantısı bu servisler üzerinden cihazınıza iletilir.</li>
+      <li><b>Google STUN sunucusu</b> (veya Şirket’in belirlediği TURN sunucusu): aramalarda cihazların birbirine bağlanabilmesi için IP adresi bilgisi kullanılır; ses/görüntü içeriği bu sunuculara kaydedilmez.</li>
+      <li><b>Meta WhatsApp Business</b> (yalnızca özellik açıksa): telefon numarası ve bildirim içeriği.</li>
+      <li><b>TypeSafe (yapay zekâ kategori önerisi)</b> (yalnızca Şirket ayarlarda açtıysa): masraf açıklaması ve tutarı, kategori önerisi için bu servise gönderilir.</li>
+    </ul>
+    <p>Bu servislerin bir kısmı yurt dışında bulunduğundan, söz konusu aktarımlar KVKK m. 9 kapsamında değerlendirilmelidir: <span class="ph">[hukuki dayanak / standart sözleşme bilgisi]</span>.</p>
+
+    <h2>5. Hukuki sebep ve saklama süresi</h2>
+    <p>
+      Veriler; iş sözleşmesinin ifası, Şirket’in hukuki yükümlülükleri ve meşru menfaati (iş süreçlerinin yürütülmesi, bilgi güvenliği) kapsamında işlenir:
+      <span class="ph">[hukuk biriminin belirleyeceği KVKK m. 5 dayanakları]</span>.
+      Saklama süresi: <span class="ph">[ör. çalışma ilişkisi süresince ve sonrasında yasal süreler boyunca; işlem kayıtları X yıl]</span>.
+      Hesabı kapatılan kullanıcıların kayıtları <span class="ph">[silme/anonimleştirme politikası]</span>.
+    </p>
+
+    <h2>6. Güvenlik</h2>
+    <p>Tüm bağlantılar HTTPS/TLS ile şifrelenir; parolalar tek yönlü özet olarak saklanır; erişim rol ve yetkilere göre sınırlandırılır; oturumlar yönetici tarafından sonlandırılabilir.</p>
+
+    <h2>7. Haklarınız</h2>
+    <p>
+      KVKK m. 11 uyarınca verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme, düzeltme, silme ve itiraz haklarına sahipsiniz.
+      Başvurularınızı <span class="ph">[başvuru kanalı]</span> üzerinden iletebilirsiniz. Mobil uygulamadaki hesabınızın ve verilerinizin silinmesini
+      aynı kanaldan veya Şirket’teki portal yöneticisinden talep edebilirsiniz.
+    </p>
+
+    <h2>8. Değişiklikler</h2>
+    <p>Bu bildirim güncellendiğinde bu sayfadaki tarih değiştirilir.</p>
+  </div>
+</main>
+</body>
+</html>

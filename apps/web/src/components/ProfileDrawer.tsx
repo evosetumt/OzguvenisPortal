@@ -176,8 +176,8 @@ export function ProfileDrawer({ userId, onClose }: { userId: number; onClose(): 
                     return (
                       <li key={t.id}>
                         <Link to={`/tasks?id=${t.id}`} onClick={onClose}>
-                          <span className="pf-ico" style={{ ['--hue' as string]: t.project?.color ?? 'var(--accent)' }}><ListChecks size={15} /></span>
-                          <span className="pf-main"><b>{t.title}</b><small className={late ? 'late' : ''}>{t.dueDate ? formatDue(t.dueDate) : 'Tarih yok'}{t.project ? ` · ${t.project.name}` : ''}</small></span>
+                          <span className="pf-ico" style={{ ['--hue' as string]: 'var(--accent)' }}><ListChecks size={15} /></span>
+                          <span className="pf-main"><b>{t.title}</b><small className={late ? 'late' : ''}>{t.dueDate ? formatDue(t.dueDate) : 'Tarih yok'}</small></span>
                           {(t.priority === 'high' || t.priority === 'urgent') && <span className={'prio ' + t.priority}>{PRIORITY_LABEL[t.priority]}</span>}
                         </Link>
                       </li>
@@ -209,23 +209,6 @@ export function ProfileDrawer({ userId, onClose }: { userId: number; onClose(): 
                 })}
               </ul>
             </section>
-
-            {p.projects.length > 0 && (
-              <section className="pf-sec">
-                <h4>Projeler <span className="pf-count">{p.projects.length}</span></h4>
-                <ul className="pf-list">
-                  {p.projects.map((x) => (
-                    <li key={x.id}>
-                      <Link to={`/tasks?project=${x.id}`} onClick={onClose}>
-                        <span className="pf-pill" style={{ ['--hue' as string]: x.color }} />
-                        <span className="pf-main"><b>{x.name}</b><small>{x.role} · {x.open} açık görev</small></span>
-                        <ChevronRight size={16} className="muted" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
 
             {p.self && (
               <section className="pf-sec">

@@ -1,8 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoginLimiter } from './login-limiter';
+import { SessionService } from './session.service';
 
 const RANK: Record<string, number> = { own: 1, department: 2, all: 3 };
 /** "Beni hatırla": oturum bu süre boyunca açık kalır, her kullanımda (yenilemede) süre baştan başlar. */
@@ -11,16 +13,26 @@ const userInclude = { roles: { include: { role: { include: { permissions: { incl
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+    private readonly limiter: LoginLimiter,
+    private readonly sessions: SessionService,
+  ) {}
 
-  async login(email: string, password: string, remember = false) {
+  async login(email: string, password: string, remember = false, ip?: string) {
+    this.limiter.check(email, ip);
     const user = await this.prisma.user.findFirst({
       where: { email: email.trim().toLowerCase(), deletedAt: null },
       include: userInclude,
     });
     // Kullanıcı yoksa da hash karşılaştır; yanıt süresi sızıntısını azaltır.
     const ok = await bcrypt.compare(password, user?.passwordHash ?? '$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinva');
-    if (!user || !ok || user.status !== 'active') throw new UnauthorizedException('E-posta veya şifre hatalı');
+    if (!user || !ok || user.status !== 'active') {
+      this.limiter.fail(email, ip);
+      throw new UnauthorizedException('E-posta veya şifre hatalı');
+    }
+    this.limiter.succeed(email, ip);
 
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     await this.prisma.auditLog.create({ data: { userId: user.id, action: 'auth.login', diff: JSON.stringify({ remember }) } });
@@ -46,7 +58,8 @@ export class AuthService {
         if (!cur || RANK[rp.scope] > RANK[cur]) permissions[rp.permission.code] = rp.scope;
       }
     }
-    const payload = { id: user.id, email: user.email, departmentId: user.departmentId, permissions, rem: remember };
+    // tv: oturum sürümü; şifre/rol/durum değişince artar ve eski jetonlar AuthGuard'da reddedilir.
+    const payload = { id: user.id, email: user.email, departmentId: user.departmentId, permissions, rem: remember, tv: user.tokenVersion };
     return {
       token: await this.jwt.signAsync(payload, remember ? { expiresIn: REMEMBER_TTL } : {}),
       remember,
@@ -54,10 +67,20 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: number, current: string, next: string) {
+  /**
+   * Şifre değişince diğer cihazlardaki oturumlar düşer (sürüm artar); bu istekteki oturum kopmasın diye
+   * yeni sürümle imzalı jeton döner — istemci bunu kaydetmelidir.
+   */
+  async changePassword(userId: number, current: string, next: string, remember = false) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if (!(await bcrypt.compare(current, user.passwordHash))) throw new UnauthorizedException('Mevcut şifre hatalı');
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(next, 10) } });
+    if (!(await bcrypt.compare(current, user.passwordHash))) throw new BadRequestException('Mevcut şifre hatalı'); // 401 değil: istemci 401'de oturumu kapatır
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await bcrypt.hash(next, 10), tokenVersion: { increment: 1 } },
+    });
+    this.sessions.afterRevoke([userId]);
     await this.prisma.auditLog.create({ data: { userId, action: 'auth.password_change' } });
+    const fresh = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, include: userInclude });
+    return this.issue(fresh, remember);
   }
 }

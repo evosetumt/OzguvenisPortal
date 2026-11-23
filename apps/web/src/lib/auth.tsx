@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, getToken, setToken } from './api';
+import { api, getToken, SESSION_EXPIRED, setToken } from './api';
 import { setPrefs, type UiPrefs } from './theme';
 
 export interface Me {
@@ -108,6 +108,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMe(null);
     channel?.postMessage({ t: 'logout' } satisfies AuthMsg);
   };
+  useEffect(() => {
+    const onExpired = () => logout();
+    window.addEventListener(SESSION_EXPIRED, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED, onExpired);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const can = (code: string) => !!me && code in me.permissions;
   const reloadSession = async () => {
     try {

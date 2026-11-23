@@ -3,6 +3,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
+import { SessionService } from './session.service';
+import { LoginLimiter } from './login-limiter';
 
 @Module({
   imports: [
@@ -15,7 +17,7 @@ import { AuthGuard } from './auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard],
-  exports: [AuthGuard, JwtModule],
+  providers: [AuthService, AuthGuard, SessionService, LoginLimiter],
+  exports: [AuthGuard, JwtModule, SessionService],
 })
 export class AuthModule {}

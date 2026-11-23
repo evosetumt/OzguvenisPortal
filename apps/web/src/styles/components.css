@@ -75,8 +75,8 @@ textarea { resize: vertical; width: 100%; }
 .table tbody tr:hover { background: var(--fill-hover); }
 .table tbody tr:last-child td { border-bottom: 0; }
 
-.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; padding: 16px; }
-.modal { width: 100%; max-width: 540px; max-height: calc(100vh - 32px); overflow: auto; padding: 22px; background: var(--glass-float); backdrop-filter: var(--float-blur); -webkit-backdrop-filter: var(--float-blur); border-radius: var(--r-xl); }
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); }
+.modal { width: 100%; max-width: 540px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px - var(--sat) - var(--sab)); overflow: auto; padding: 22px; background: var(--glass-float); backdrop-filter: var(--float-blur); -webkit-backdrop-filter: var(--float-blur); border-radius: var(--r-xl); }
 .modal.wide { max-width: 760px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
 .modal-head > div { display: flex; }
@@ -152,7 +152,7 @@ textarea { resize: vertical; width: 100%; }
   .cal-item { font-size: 10px; padding: 2px 3px; }
   .cal-item small { display: none; }
   .drawer-overlay { padding: 0; }
-  .drawer { width: 100%; border-radius: 0; }
+  .drawer { width: 100%; border-radius: 0; padding-top: calc(22px + var(--sat)); padding-bottom: calc(22px + var(--sab)); }
   .table th:nth-child(n+4), .table td:nth-child(n+4) { display: none; }
 }
 
@@ -185,3 +185,7 @@ textarea { resize: vertical; width: 100%; }
 .push-prompt__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .push-prompt__text b { font-size: 14px; }
 .push-prompt__text small { color: var(--text-2); font-size: 12.5px; line-height: 1.4; }
+
+/* Hızlı görev (Ekip / Mesajlar kartı) onayı */
+.quick-task-ok { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
+.quick-task-ok svg { color: var(--green, #2bb673); flex: none; margin-top: 2px; }

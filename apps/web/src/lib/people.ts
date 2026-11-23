@@ -36,6 +36,9 @@ export function usePeople() {
   return people;
 }
 
+/** Rehberdeki kişiler ada göre (Türkçe sıralama); kişi seçim listeleri için. */
+export const sortedPeople = (map: Map<number, Person>) => [...map.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'));
+
 export const PRESENCE: Record<string, { label: string; cls: string }> = {
   online: { label: 'Çevrimiçi', cls: 'ok' },
   focus: { label: 'Odakta', cls: 'focus' },

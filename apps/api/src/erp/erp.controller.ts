@@ -1,10 +1,24 @@
-import { BadRequestException, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { AuthGuard, AuthUser } from '../auth/auth.guard';
 import { RequirePermission } from '../common/permissions.decorator';
 import { CurrentUser } from '../common/current-user.decorator';
 import { AuditService } from '../common/audit.service';
 import { ErpService, ListFilter } from './erp.service';
 import { ErpSyncService } from './erp-sync.service';
+import { NetsisClient } from './netsis.client';
+
+class NetsisConnectionDto {
+  /** "sunucu", "10.0.0.5" veya adlandırılmış örnek "sunucu\NETSIS" */
+  @IsString() @MaxLength(200) @Matches(/^[^\s;'"]+$/, { message: 'Sunucu adında boşluk, noktalı virgül veya tırnak olamaz' }) server: string;
+  @IsInt() @Min(1) @Max(65535) port: number;
+  @IsString() @MaxLength(128) @Matches(/^[^;'"]+$/, { message: 'Veritabanı adında noktalı virgül veya tırnak olamaz' }) database: string;
+  @IsString() @MaxLength(128) user: string;
+  /** Gönderilmezse kayıtlı şifre korunur. */
+  @IsOptional() @IsString() @MaxLength(256) password?: string;
+  @IsBoolean() encrypt: boolean;
+  @IsBoolean() trustServerCertificate: boolean;
+}
 
 const optDate = (v?: string) => {
   if (!v) return undefined;
@@ -25,7 +39,32 @@ const filter = (q: Record<string, string | undefined>): ListFilter => ({
 @Controller('erp')
 @UseGuards(AuthGuard)
 export class ErpController {
-  constructor(private readonly erp: ErpService, private readonly sync: ErpSyncService, private readonly audit: AuditService) {}
+  constructor(
+    private readonly erp: ErpService,
+    private readonly sync: ErpSyncService,
+    private readonly netsis: NetsisClient,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** Ayarlar → Netsis: bağlantı bilgileri (şifre dönmez). */
+  @Get('connection')
+  @RequirePermission('erp.manage')
+  connection() {
+    return this.netsis.getConfig();
+  }
+
+  @Put('connection')
+  @RequirePermission('erp.manage')
+  async saveConnection(@CurrentUser() u: AuthUser, @Body() dto: NetsisConnectionDto) {
+    if (!dto.server.trim() || !dto.database.trim() || !dto.user.trim()) throw new BadRequestException('Sunucu, veritabanı ve kullanıcı boş olamaz');
+    const cfg = await this.netsis.saveConfig({
+      server: dto.server.trim(), port: dto.port, database: dto.database.trim(), user: dto.user.trim(),
+      encrypt: dto.encrypt, trustServerCertificate: dto.trustServerCertificate, password: dto.password,
+    });
+    const { passwordSet, ...logged } = cfg;
+    await this.audit.log(u.id, 'erp.connection', 'setting', 'erp.netsis', { ...logged, passwordChanged: dto.password !== undefined });
+    return cfg;
+  }
 
   @Get('status')
   @RequirePermission('erp.manage')

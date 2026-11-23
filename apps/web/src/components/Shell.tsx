@@ -3,12 +3,12 @@ import { storeGet, storeSet } from '../lib/storage';
 import type { FormEvent, ReactNode } from 'react';
 import {
   BarChart3, CalendarDays, CheckSquare, ClipboardCheck, FileText, Home, MessageCircle, MessageSquare, Moon, Receipt,
-  Search, Settings, Sun, Timer, Video, Wallet, Workflow, LogOut, Plus, LayoutGrid, X, Banknote, Menu, PanelLeftClose, PanelLeftOpen, Users,
+  Newspaper, Search, Settings, Sun, Timer, Video, Wallet, Workflow, LogOut, Plus, LayoutGrid, X, Menu, PanelLeftClose, PanelLeftOpen, Users,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { getPrefs, getTheme, setPrefs, setTheme, subscribe } from '../lib/theme';
 import { useApi } from '../lib/data';
-import type { Project } from '../lib/types';
+import type { TaskSummary } from '../lib/types';
 import { NotificationsBell } from './NotificationsBell';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { connectRealtime, disconnectRealtime, useSocketEvent } from '../lib/realtime';
@@ -31,6 +31,7 @@ const NAV: { to: string; label: string; icon: typeof Home; perm?: string | strin
   { to: '/tasks', label: 'Görevler', icon: CheckSquare, perm: 'task.read' },
   { to: '/calendar', label: 'Takvim', icon: CalendarDays, perm: 'calendar.read' },
   { to: '/messages', label: 'Mesajlar', icon: MessageSquare },
+  { to: '/feed', label: 'Akış', icon: Newspaper },
   { to: '/team', label: 'Ekip', icon: Users },
   { to: '/meetings', label: 'Toplantılar', icon: Video },
   { to: '/approvals', label: 'Onaylarım', icon: ClipboardCheck },
@@ -38,7 +39,6 @@ const NAV: { to: string; label: string; icon: typeof Home; perm?: string | strin
   { to: '/orders', label: 'Sipariş / Teklif', icon: FileText, perm: ['order.read', 'quote.read', 'shipment.read'] },
   { to: '/accounts', label: 'Cari Hesaplar', icon: Wallet, perm: 'account.read' },
   { to: '/expenses', label: 'Masraflar', icon: Receipt, perm: 'expense.create' },
-  { to: '/payments', label: 'Ödemeler', icon: Banknote, perm: ['payment.read', 'payment.manage'] },
   { to: '/tracking', label: 'Süre Takibi', icon: Timer, perm: 'tracking.read' },
   { to: '/workflows', label: 'Akış Tasarımcısı', icon: Workflow, perm: 'workflow.design' },
   { to: '/settings', label: 'Ayarlar', icon: Settings },
@@ -83,7 +83,8 @@ export function Shell({ children }: { children: ReactNode }) {
   // Gizli menüdeki bağlantılar klavyeyle odaklanmasın (React 18'de inert özelliği tanımlı değil)
   const asideRef = useRef<HTMLElement>(null);
   useEffect(() => { asideRef.current?.toggleAttribute('inert', !side.open); }, [side.open]);
-  const { data: projects } = useApi<Project[]>(can('task.read') ? '/projects' : null);
+  // Menüdeki görev sayacı: bana atanmış açık görevler
+  const { data: myTasks } = useApi<TaskSummary>(can('task.read') ? '/tasks/summary?mine=1' : null);
   const applyTheme = (n: ThemePref) => setPrefs({ theme: n });
   const toggle = () => setTheme(theme === 'dark' ? 'light' : 'dark');
   // Kişi profili her sayfadan ?profile=<id> ile açılır (Ekip kartları, kullanıcı menüsü)
@@ -92,8 +93,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const openProfile = (id: number) => { const p = new URLSearchParams(params); p.set('profile', String(id)); setParams(p); };
   const closeProfile = () => { const p = new URLSearchParams(params); p.delete('profile'); setParams(p, { replace: true }); };
   const items = NAV.filter((n) => !n.perm || [n.perm].flat().some(can));
-  const pinned = (projects ?? []).filter((p) => p.pinned);
-  const openCount = (projects ?? []).reduce((n, p) => n + p.openTasks, 0);
+  const openCount = myTasks?.open ?? 0;
   const unreadMessages = useUnreadMessages(me!.id);
 
   // Yönetici rolümü/yetkilerimi değiştirdi: menü ve erişim hemen güncellensin.
@@ -101,7 +101,12 @@ export function Shell({ children }: { children: ReactNode }) {
   // Oturum açıkken tek WebSocket bağlantısı; çıkışta (Shell kaldırılınca) kapanır.
   useEffect(() => { connectRealtime(); return () => disconnectRealtime(); }, []);
   // Mobil (Capacitor): bildirime dokununca ilgili sayfayı aç, Android geri tuşu
-  useEffect(() => { void initNativeApp(nav); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let disposed = false;
+    let dispose: (() => void) | undefined;
+    void initNativeApp(nav, () => disposed).then((d) => { dispose = d; if (disposed) d(); });
+    return () => { disposed = true; dispose?.(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Kayan menü göstergesi: aktif öğeye yumuşakça kayar
   const navRef = useRef<HTMLElement>(null);
@@ -111,7 +116,7 @@ export function Shell({ children }: { children: ReactNode }) {
     move();
     window.addEventListener('resize', move);
     return () => window.removeEventListener('resize', move);
-  }, [loc.pathname, loc.search, items.length, pinned.length, side.open]);
+  }, [loc.pathname, loc.search, items.length, side.open]);
 
   // Telefonda sayfa değişince çekmece kapanır; Esc ile de kapanır.
   useEffect(() => { side.closeMobile(); setSheet(false); }, [loc.pathname, loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -149,18 +154,10 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="nav-lens" ref={lensRef} aria-hidden="true" />
           {items.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} end={to === '/'}
-              className={({ isActive }) => 'nav-item' + (isActive && !(to === '/tasks' && new URLSearchParams(loc.search).has('project')) ? ' active' : '')}>
+              className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}>
               <Icon size={19} strokeWidth={1.8} /><span>{label}</span>
               {to === '/tasks' && openCount > 0 && <span className="nav-count">{openCount}</span>}
               {to === '/messages' && unreadMessages > 0 && <span className="nav-count">{unreadMessages > 99 ? '99+' : unreadMessages}</span>}
-            </NavLink>
-          ))}
-          {pinned.length > 0 && <small className="nav-section">Sabitlenenler</small>}
-          {pinned.map((p) => (
-            <NavLink key={p.id} to={`/tasks?project=${p.id}`}
-              className={() => 'nav-item' + (loc.pathname === '/tasks' && new URLSearchParams(loc.search).get('project') === String(p.id) ? ' active' : '')}>
-              <i className="dot" style={{ background: p.color }} /><span>{p.name}</span>
-              {p.openTasks > 0 && <span className="nav-count">{p.openTasks}</span>}
             </NavLink>
           ))}
         </nav>
@@ -174,7 +171,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
           )}
           <form className="search" onSubmit={search} role="search">
-            <Search size={19} /><input placeholder="Görevlerde ara…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Search size={19} /><input placeholder="Görevlerde ara…" aria-label="Görevlerde ara" value={q} onChange={(e) => setQ(e.target.value)} />
           </form>
           {can('task.write') && <button className="icon-btn" title="Hızlı görev ekle" onClick={() => nav('/tasks?new=1')}><Plus size={21} /></button>}
           <button className="icon-btn theme-btn" title="Tema" onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>

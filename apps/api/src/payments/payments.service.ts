@@ -326,15 +326,19 @@ export class PaymentsService implements OnModuleInit {
     if (!first) throw new BadRequestException('Görev durumu tanımlı değil');
     const last = await this.prisma.task.aggregate({ where: { statusId: first.id }, _max: { sortOrder: true } });
     const watchers = uniqIds(target, managerId, p.createdById);
-    const task = await this.prisma.task.create({
-      data: {
-        title: this.taskTitle(p), description: this.taskBody(p), priority: 'high', statusId: first.id,
-        assigneeId: target, createdById: actorId ?? p.createdById, dueDate: p.dueDate,
-        relatedType: 'payment', relatedId: String(p.id), sortOrder: (last._max.sortOrder ?? -1) + 1,
-        watchers: { create: watchers.map((userId) => ({ userId })) },
-      },
+    // Görev ve ödemeye bağlanması birlikte: arada hata olursa ödemesiz/sahipsiz görev kalmasın.
+    const task = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.task.create({
+        data: {
+          title: this.taskTitle(p), description: this.taskBody(p), priority: 'high', statusId: first.id,
+          assigneeId: target, createdById: actorId ?? p.createdById, dueDate: p.dueDate,
+          relatedType: 'payment', relatedId: String(p.id), sortOrder: (last._max.sortOrder ?? -1) + 1,
+          watchers: { create: watchers.map((userId) => ({ userId })) },
+        },
+      });
+      await tx.payment.update({ where: { id }, data: { taskId: created.id, assigneeId: target, status, taskOpenedAt: new Date() } });
+      return created;
     });
-    await this.prisma.payment.update({ where: { id }, data: { taskId: task.id, assigneeId: target, status, taskOpenedAt: new Date() } });
     this.events.emit('task.created', actorId, { taskId: task.id, title: task.title });
     if (target && !auto) this.events.emit('task.assigned', actorId, { taskId: task.id, title: task.title, assigneeId: target });
 
@@ -389,25 +393,36 @@ export class PaymentsService implements OnModuleInit {
     if (!ok.count) return false;
     const p = await this.prisma.payment.findUniqueOrThrow({ where: { id }, include });
 
-    if (p.task && !p.task.deletedAt && !p.task.status.isDone) {
-      const done = await this.prisma.taskStatus.findFirst({ where: { projectId: null, isDone: true }, orderBy: { sortOrder: 'asc' } });
-      if (done) {
-        await this.prisma.task.update({ where: { id: p.task.id }, data: { statusId: done.id, completedAt: new Date() } });
-        this.events.emit('task.completed', actorId, { taskId: p.task.id, title: this.taskTitle(p), createdById: p.createdById });
-      }
+    const done = p.task && !p.task.deletedAt && !p.task.status.isDone
+      ? await this.prisma.taskStatus.findFirst({ where: { projectId: null, isDone: true }, orderBy: { sortOrder: 'asc' } })
+      : null;
+    const closeTask = (db: Prisma.TransactionClient) => (done ? db.task.update({ where: { id: p.task!.id }, data: { statusId: done.id, completedAt: new Date() } }) : null);
+    const months = RECUR_MONTHS[p.recurrence];
+    // Görevi kapatma ve sonraki vadeyi açma birlikte: arada çökme olursa tekrarlı ödemenin sonraki vadesi kaybolmasın.
+    let next: { id: number } | null = null;
+    try {
+      next = await this.prisma.$transaction(async (tx) => {
+        await closeTask(tx);
+        if (!months || (await tx.payment.count({ where: { previousId: p.id } }))) return null;
+        return tx.payment.create({
+          data: {
+            type: p.type, title: p.title, counterparty: p.counterparty, docNo: p.docNo, amount: p.amount, currency: p.currency,
+            dueDate: addMonths(p.dueDate, months), departmentId: p.departmentId, leadDays: p.leadDays, recurrence: p.recurrence,
+            notes: p.notes, createdById: p.createdById, previousId: p.id,
+          },
+          select: { id: true },
+        });
+      });
+    } catch (e) {
+      // previousId üzerindeki benzersiz indeks: sonraki vade eşzamanlı başka bir istekte zaten açılmış. İşlem geri alındığı
+      // için görevi tek başına kapat.
+      if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e;
+      await closeTask(this.prisma);
     }
 
-    const months = RECUR_MONTHS[p.recurrence];
-    if (months && !(await this.prisma.payment.count({ where: { previousId: p.id } }))) {
-      const next = await this.prisma.payment.create({
-        data: {
-          type: p.type, title: p.title, counterparty: p.counterparty, docNo: p.docNo, amount: p.amount, currency: p.currency,
-          dueDate: addMonths(p.dueDate, months), departmentId: p.departmentId, leadDays: p.leadDays, recurrence: p.recurrence,
-          notes: p.notes, createdById: p.createdById, previousId: p.id,
-        },
-      });
-      await this.openDue(next.id);
-    }
+    // Bildirimler ve sonraki vadenin görevi yalnızca kayıt kesinleştikten sonra.
+    if (done) this.events.emit('task.completed', actorId, { taskId: p.task!.id, title: this.taskTitle(p), createdById: p.createdById });
+    if (next) await this.openDue(next.id);
 
     const userIds = uniqIds(p.department.managerId, p.createdById).filter((x) => x !== actorId);
     this.events.emit('payment.paid', actorId, { paymentId: p.id, title: p.title, amount: fmtMoney(p.amount, p.currency), userIds });

@@ -33,6 +33,7 @@ const PERMISSIONS: [string, string][] = [
   ['payment.read', 'Ödeme takibini görüntüle'],
   ['payment.manage', 'Ödeme kaydı yönet (çek, kredi kartı, vergi...)'],
   ['chat.audit', 'Sohbet arşivi: tüm sohbetler, silinen mesajlar ve geri getirme'],
+  ['feed.read', 'Haber akışını görüntüle'],
 ];
 
 // rol -> [izin kodu, kapsam]
@@ -44,16 +45,16 @@ const ROLES: Record<string, [string, string][]> = {
     ['calendar.read', 'all'], ['order.read', 'department'], ['quote.read', 'department'],
     ['shipment.read', 'department'], ['report.read', 'all'], ['expense.create', 'own'],
     ['expense.approve', 'department'], ['tracking.read', 'all'],
-    ['payment.read', 'department'], ['payment.manage', 'department'],
+    ['payment.read', 'department'], ['payment.manage', 'department'], ['feed.read', 'all'],
   ],
   Muhasebe: [
     ['task.read', 'own'], ['task.write', 'own'], ['calendar.read', 'own'], ['account.read', 'all'],
     ['report.read', 'own'], ['expense.create', 'own'], ['expense.accounting', 'all'],
-    ['payment.read', 'all'], ['payment.manage', 'all'],
+    ['payment.read', 'all'], ['payment.manage', 'all'], ['feed.read', 'own'],
   ],
   Personel: [
     ['task.read', 'own'], ['task.write', 'own'], ['calendar.read', 'own'], ['expense.create', 'own'],
-    ['payment.read', 'own'],
+    ['payment.read', 'own'], ['feed.read', 'own'],
   ],
 };
 
@@ -86,11 +87,15 @@ async function main() {
   }
 
   const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@ozguvenis.local';
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'Degistir!12345';
-  const user = await prisma.user.upsert({
-    where: { email }, update: {},
-    create: { email, fullName: 'Sistem Yöneticisi', passwordHash: await bcrypt.hash(password, 10) },
-  });
+  // Yönetici yalnızca ilk kurulumda oluşturulur; tahmin edilebilir varsayılan şifre kullanılmaz.
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const password = process.env.SEED_ADMIN_PASSWORD;
+    if (!password || password.length < 8) {
+      throw new Error(`Yönetici hesabı (${email}) yok; oluşturmak için SEED_ADMIN_PASSWORD ortam değişkenine en az 8 karakterlik bir şifre verin.`);
+    }
+    user = await prisma.user.create({ data: { email, fullName: 'Sistem Yöneticisi', passwordHash: await bcrypt.hash(password, 10) } });
+  }
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: user.id, roleId: admin.id } },
     update: {}, create: { userId: user.id, roleId: admin.id },

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/auth.guard';
-import { scopeOf } from '../common/scope';
+import { scopeOf, taskReadWhere } from '../common/scope';
 import { CalendarService } from '../calendar/calendar.service';
 import { ErpScope } from './erp-scope';
 import { ErpSyncService } from './erp-sync.service';
@@ -189,7 +189,7 @@ export class ErpService implements OnModuleInit {
         .filter((s) => (s.orderNos ?? '').split(',').includes(o.docNo))
       : [];
     const tasks = await this.prisma.task.findMany({
-      where: { deletedAt: null, relatedType: 'erp_order', relatedId: o.docNo },
+      where: { deletedAt: null, relatedType: 'erp_order', relatedId: o.docNo, ...taskReadWhere(u) },
       select: { id: true, title: true },
     });
     const name = await this.names([o.customerCode]);
@@ -209,7 +209,7 @@ export class ErpService implements OnModuleInit {
   async quote(u: AuthUser, id: number) {
     const q = await this.prisma.erpQuote.findFirst({ where: { id, ...(await this.scope.where(u, 'quote.read')) }, include: { items: { orderBy: { lineNo: 'asc' } } } });
     if (!q) throw new NotFoundException('Teklif bulunamadı');
-    const tasks = await this.prisma.task.findMany({ where: { deletedAt: null, relatedType: 'erp_quote', relatedId: q.docNo }, select: { id: true, title: true } });
+    const tasks = await this.prisma.task.findMany({ where: { deletedAt: null, relatedType: 'erp_quote', relatedId: q.docNo, ...taskReadWhere(u) }, select: { id: true, title: true } });
     const name = await this.names([q.customerCode]);
     return plain({ ...q, customerName: name(q.customerCode), tasks });
   }

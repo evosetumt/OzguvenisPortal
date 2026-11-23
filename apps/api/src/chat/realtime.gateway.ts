@@ -7,6 +7,7 @@ import type { Server, Socket } from 'socket.io';
 import { EventsService } from '../events/events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/auth.guard';
+import { SessionService } from '../auth/session.service';
 
 /** İzinli kökenler çalışma anında okunur (.env, dekoratör değerlendirildikten sonra yüklenir). */
 const allowedOrigin = (origin: string | undefined, cb: (err: Error | null, ok?: boolean) => void) => {
@@ -37,7 +38,12 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   /** Kullanıcının ekranda görünür (ön planda) olan bağlantıları; mesaj bildiriminin telefona gidip gitmeyeceğine bakılır. */
   private readonly visible = new Map<number, Set<string>>();
 
-  constructor(private readonly jwt: JwtService, private readonly events: EventsService, private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly events: EventsService,
+    private readonly prisma: PrismaService,
+    private readonly sessions: SessionService,
+  ) {}
 
   onModuleInit() {
     // Uygulama içi bildirim oluşunca zil anında güncellensin (30 sn yoklama yedek olarak kalır).
@@ -47,6 +53,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
     // Rol/yetki değişti: istemci jetonunu yenileyip menüsünü günceller.
     this.events.on('auth.changed', (e) => this.toUsers((e.payload as { userIds: number[] }).userIds, 'auth:changed', {}));
+    // Oturum iptal edildi (pasifleştirme, şifre/rol değişikliği): açık soketler hemen kopsun.
+    this.events.on('auth.revoked', (e) => this.disconnectUsers((e.payload as { userIds: number[] }).userIds));
     // Veritabanında bir şey değişince açık ekranlar ilgili veriyi kendi yetkileriyle yeniden çeker (veri gönderilmez, yalnızca konu).
     this.prisma.onWrite((topics) => this.server?.to(AUTHED).emit('data:changed', { topics }));
   }
@@ -56,8 +64,13 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     try {
       if (!token) throw new Error('jeton yok');
       const user = (await this.jwt.verifyAsync(token)) as AuthUser;
-      client.data.user = user;
+      // HTTP ile aynı kural: pasif/silinmiş kullanıcı veya iptal edilmiş oturum bağlanamaz.
+      if (!(await this.sessions.isValid(user.id, user.tv))) throw new Error('oturum iptal');
       await client.join([userRoom(user.id), AUTHED]);
+      // Beklemeler sırasında bağlantı koptuysa handleDisconnect sayaç düşürmeden çıktı; artırırsak kullanıcı
+      // sonsuza dek "çevrimiçi" kalır. client.data.user da ancak burada atanır ki düşürme ile eşleşsin.
+      if (!client.connected) return;
+      client.data.user = user;
       this.online.set(user.id, (this.online.get(user.id) ?? 0) + 1);
     } catch {
       client.emit('auth_error', { message: 'Oturum geçersiz' });
@@ -119,6 +132,12 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   isOnline(userId: number) {
     return this.online.has(userId);
+  }
+
+  /** Kullanıcıların tüm açık soketlerini kapatır (oturum iptalinde). */
+  disconnectUsers(userIds: number[]) {
+    if (!userIds.length || !this.server) return;
+    this.server.in(userIds.map(userRoom)).disconnectSockets(true);
   }
 
   toUser(userId: number, event: string, data: unknown) {

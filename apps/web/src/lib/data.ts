@@ -10,6 +10,7 @@ import { connectRealtime } from './realtime';
 const LIVE: Record<string, string[]> = {
   tasks: ['tasks'], 'task-statuses': ['tasks'], projects: ['tasks'],
   meetings: ['meetings', 'tasks'],
+  feed: ['feed'], // karta bağlı görev değişince sunucu kartı günceller (feed-events.service → touch)
   calendar: ['calendar', 'meetings', 'tasks'],
   reports: ['tasks', 'payments', 'expenses', 'process', 'calendar', 'meetings', 'tracking'],
   team: ['users', 'tasks', 'meetings'],
@@ -80,12 +81,16 @@ export function useApi<T>(path: string | null) {
   const [loading, setLoading] = useState(!!path);
   const lastJson = useRef(''); // son verinin JSON'u; yalnız sessiz tazelemede (gerekince) hesaplanır
   const lastData = useRef<T | null>(null);
+  const reqId = useRef(0); // yalnız en son isteğin cevabı uygulanır (geç gelen eski cevap yenisini ezmesin)
 
   const fetchData = useCallback(async (silent: boolean) => {
     if (!path) return;
+    const id = ++reqId.current;
+    const stale = () => id !== reqId.current;
     if (!silent) setLoading(true);
     try {
       const next = await (silent ? fetchShared<T>(path) : api<T>(path));
+      if (stale()) return;
       if (silent) {
         // Sessiz tazelemede veri aynıysa durum değiştirilmez (açık formlar, kaydırma konumu bozulmasın).
         const j = JSON.stringify(next);
@@ -96,9 +101,9 @@ export function useApi<T>(path: string | null) {
       setData(next);
       setError('');
     } catch (e) {
-      if (!silent) setError(e instanceof Error ? e.message : 'Yüklenemedi');
+      if (!silent && !stale()) setError(e instanceof Error ? e.message : 'Yüklenemedi');
     } finally {
-      if (!silent) setLoading(false);
+      if (!silent && !stale()) setLoading(false);
     }
   }, [path]);
 

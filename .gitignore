@@ -16,3 +16,17 @@ apps/web/.cert
 *.jks
 *.keystore
 __MACOSX
+# Mobil mağaza imza/gizli dosyaları (bkz. deploy/mobile/MAGAZA.md)
+keystore.properties
+*.p8
+*.mobileprovision
+GoogleService-Info.plist
+google-services.json
+
+# EvoFlow kurulum programı: indirilen ikili dosyalar ve derleme çıktısı
+deploy/installer/.cache/
+deploy/installer/out/
+
+# Cloudflare Tunnel token ve kurulum dosyası (repoya girmemeli)
+key.txt
+*.msi

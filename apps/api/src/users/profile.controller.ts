@@ -14,7 +14,8 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { AuditService } from '../common/audit.service';
 import { SettingsService } from '../common/settings.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { scopeOf, startOfTodayUtc } from '../common/scope';
+import { scopeOf, startOfTodayUtc, taskReadWhere } from '../common/scope';
+import { addLocalDays, startOfLocalWeek } from '../common/local-time';
 
 const DAY = 86400000;
 export const PRESENCE = ['online', 'focus', 'meeting', 'away'] as const;
@@ -65,17 +66,22 @@ export class ProfileController {
     return s === 'all' || (s === 'department' && !!u.departmentId && u.departmentId === target.departmentId);
   }
 
+  /**
+   * today/nextMonday: yalnız-gün dueDate ile (UTC gece yarısı düzlemi). localMonday/localNextMonday: gerçek zaman
+   * damgalarıyla (completedAt, startsAt); hafta yerel (İstanbul) pazartesi 00:00'da başlar.
+   */
   private week() {
     const today = startOfTodayUtc();
     const monday = new Date(today.getTime() - ((today.getUTCDay() + 6) % 7) * DAY);
-    return { today, monday, nextMonday: new Date(monday.getTime() + 7 * DAY) };
+    const localMonday = startOfLocalWeek();
+    return { today, nextMonday: new Date(monday.getTime() + 7 * DAY), localMonday, localNextMonday: addLocalDays(localMonday, 7) };
   }
 
   @Get('team')
   @UseGuards(AuthGuard)
   async team(@CurrentUser() u: AuthUser) {
     const capacity = await this.settings.get<number>('report.workloadCapacity', 8);
-    const { today, monday, nextMonday } = this.week();
+    const { today, nextMonday, localMonday } = this.week();
     const users = await this.prisma.user.findMany({ where: { deletedAt: null, status: 'active' }, select: userCard, orderBy: { fullName: 'asc' } });
     const visible = users.filter((x) => this.canSeeTasks(u, x)).map((x) => x.id);
     const open = visible.length
@@ -87,7 +93,7 @@ export class ProfileController {
     const doneWeek = visible.length
       ? await this.prisma.task.groupBy({
         by: ['assigneeId'], _count: true,
-        where: { deletedAt: null, assigneeId: { in: visible }, status: { isDone: true }, completedAt: { gte: monday } },
+        where: { deletedAt: null, assigneeId: { in: visible }, status: { isDone: true }, completedAt: { gte: localMonday } },
       })
       : [];
     const stats = new Map<number, { open: number; overdue: number; dueWeek: number; doneWeek: number }>();
@@ -113,23 +119,24 @@ export class ProfileController {
     const x = await this.prisma.user.findFirst({ where: { id, deletedAt: null }, select: userCard });
     if (!x) throw new NotFoundException('Kişi bulunamadı');
     const capacity = await this.settings.get<number>('report.workloadCapacity', 8);
-    const { today, monday, nextMonday } = this.week();
+    const { today, nextMonday, localMonday, localNextMonday } = this.week();
     const self = u.id === id;
     const showTasks = this.canSeeTasks(u, x);
 
     const [openTasks, doneWeek, events, projects] = await Promise.all([
       showTasks
         ? this.prisma.task.findMany({
-          where: { deletedAt: null, assigneeId: id, status: { isDone: false } },
+          // Başkasının profilinde yalnızca görebildiğim görevler listelenir (yönetici: hepsi; sayılar toplamdır)
+          where: { deletedAt: null, assigneeId: id, status: { isDone: false }, ...(self ? {} : taskReadWhere(u)) },
           select: { id: true, title: true, dueDate: true, priority: true, project: { select: { id: true, name: true, color: true } } },
           orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { id: 'desc' }],
         })
         : null,
-      showTasks ? this.prisma.task.count({ where: { deletedAt: null, assigneeId: id, status: { isDone: true }, completedAt: { gte: monday } } }) : null,
+      showTasks ? this.prisma.task.count({ where: { deletedAt: null, assigneeId: id, status: { isDone: true }, completedAt: { gte: localMonday } } }) : null,
       // Bu haftaki etkinlikler: kendi profilimde hepsi; başkasında yalnızca benim de görebildiklerim
       this.prisma.calendarEvent.findMany({
         where: {
-          deletedAt: null, startsAt: { gte: monday, lt: nextMonday },
+          deletedAt: null, startsAt: { gte: localMonday, lt: localNextMonday },
           AND: [
             { OR: [{ ownerId: id }, { attendees: { some: { userId: id } } }] },
             ...(self ? [] : [{

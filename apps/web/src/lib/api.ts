@@ -23,6 +23,9 @@ const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 /** API'nin verdiği /api/... yollarını mobil derlemede tam adrese çevirir. */
 export const apiUrl = (path: string) => (path.startsWith('/api/') ? BASE + path : path);
 
+/** api() oturumu geçersiz bulunca window'a gönderilen olay (AuthProvider dinler ve çıkış yapar). */
+export const SESSION_EXPIRED = 'ozg:session-expired';
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -38,6 +41,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   });
   if (!res.ok) {
+    // Oturum sunucuda iptal edildi (pasife alma, şifre sıfırlama, yetki daraltma): giriş ekranına dön.
+    // Giriş isteğinin kendi 401'i (hatalı şifre) ve bu arada yenilenmiş jeton hariç.
+    if (res.status === 401 && token && path !== '/auth/login' && token === getToken()) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED));
+    }
     let msg = 'İstek başarısız';
     try { msg = (await res.json()).message ?? msg; } catch { /* gövde yok */ }
     throw new ApiError(res.status, Array.isArray(msg) ? msg.join(', ') : msg);

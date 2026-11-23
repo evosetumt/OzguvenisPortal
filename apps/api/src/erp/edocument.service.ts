@@ -33,9 +33,29 @@ export function invoiceDirection(description: string | null | undefined): 'sales
   return null;
 }
 
+/** Kesinleşmiş e-belge XML'i değişmez; aynı fatura tekrar açılınca Netsis'e gidilmez (bellek, LRU). */
+const CACHE_MAX = 60;
+const CACHE_TTL_MS = 60 * 60_000;
+
 @Injectable()
 export class EDocumentService {
+  private readonly cache = new Map<string, { at: number; doc: EDocument }>();
+
   constructor(private readonly netsis: NetsisClient) {}
+
+  private cached(key: string): EDocument | null {
+    const hit = this.cache.get(key);
+    if (!hit) return null;
+    this.cache.delete(key);
+    if (Date.now() - hit.at > CACHE_TTL_MS) return null;
+    this.cache.set(key, hit); // en son kullanılan sona
+    return hit.doc;
+  }
+
+  private remember(key: string, doc: EDocument) {
+    this.cache.set(key, { at: Date.now(), doc });
+    while (this.cache.size > CACHE_MAX) this.cache.delete(this.cache.keys().next().value!);
+  }
 
   /** Ekstredeki belge numaralarından hangilerinin e-belge XML'i var (tek sorgu; Netsis erişilemezse boş). */
   async available(docNos: string[]): Promise<Set<string>> {
@@ -45,8 +65,8 @@ export class EDocumentService {
     const inList = list.map((_, i) => `@d${i}`).join(',');
     try {
       const rows = await this.netsis.query<{ d: string }>(
-        `SELECT RTRIM(f.FATIRS_NO) AS d FROM TBLEFATURA f WITH (NOLOCK) WHERE RTRIM(f.FATIRS_NO) IN (${inList}) AND ${HAS_XML_EFATURA}
-         UNION SELECT RTRIM(FATIRS_NO) FROM TBLEARSIV WITH (NOLOCK) WHERE RTRIM(FATIRS_NO) IN (${inList}) AND DATALENGTH(XMLBYTES) > 0`,
+        `SELECT RTRIM(f.FATIRS_NO) AS d FROM TBLEFATURA f WITH (NOLOCK) WHERE f.FATIRS_NO IN (${inList}) AND ${HAS_XML_EFATURA}
+         UNION SELECT RTRIM(FATIRS_NO) FROM TBLEARSIV WITH (NOLOCK) WHERE FATIRS_NO IN (${inList}) AND DATALENGTH(XMLBYTES) > 0`,
         params,
       );
       return new Set(rows.map((r) => r.d));
@@ -58,6 +78,15 @@ export class EDocumentService {
 
   async get(docNo: string, opts: { direction: 'sales' | 'purchase' | null; customerCode: string; taxNo: string | null; date: Date }): Promise<EDocument> {
     if (!this.netsis.configured) throw new ServiceUnavailableException('Netsis bağlantısı yapılandırılmamış');
+    const key = [docNo, opts.direction ?? '', opts.customerCode, opts.taxNo ?? '', opts.date.toISOString().slice(0, 10)].join('|');
+    const hit = this.cached(key);
+    if (hit) return hit;
+    const doc = await this.load(docNo, opts);
+    this.remember(key, doc);
+    return doc;
+  }
+
+  private async load(docNo: string, opts: { direction: 'sales' | 'purchase' | null; customerCode: string; taxNo: string | null; date: Date }): Promise<EDocument> {
     const ftirsip = opts.direction === 'sales' ? '1' : opts.direction === 'purchase' ? '2' : null;
     const ft = ftirsip ? ' AND FTIRSIP = @ft' : '';
     const rows = await this.netsis.query<Candidate>(
@@ -65,10 +94,10 @@ export class EDocumentService {
               RTRIM(f.SENDERVNO) AS vno, f.TARIH AS date,
               CASE WHEN DATALENGTH(f.XMLVERI) > 200 THEN CAST(CAST(f.XMLVERI AS varchar(max)) AS varbinary(max)) END AS direct,
               (SELECT TOP 1 z.XMLBYTES FROM TBLEFATZARF z WITH (NOLOCK) WHERE z.ZARFID = f.ZARFID AND DATALENGTH(z.XMLBYTES) > 0) AS data
-       FROM TBLEFATURA f WITH (NOLOCK) WHERE RTRIM(f.FATIRS_NO) = @doc${ft.replace('FTIRSIP', 'f.FTIRSIP')}
+       FROM TBLEFATURA f WITH (NOLOCK) WHERE f.FATIRS_NO = @doc${ft.replace('FTIRSIP', 'f.FTIRSIP')}
        UNION ALL
        SELECT 'A', FTIRSIP, RTRIM(GIB_FATIRS_NO), RTRIM(UUID), RTRIM(CARI_KODU), NULL, TARIH, NULL, XMLBYTES
-       FROM TBLEARSIV WITH (NOLOCK) WHERE RTRIM(FATIRS_NO) = @doc${ft}`,
+       FROM TBLEARSIV WITH (NOLOCK) WHERE FATIRS_NO = @doc${ft}`,
       ftirsip ? { doc: docNo, ft: ftirsip } : { doc: docNo },
     );
     const withData = rows.filter((r) => r.direct?.length || r.data?.length);

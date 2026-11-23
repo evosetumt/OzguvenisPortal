@@ -4,6 +4,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { api } from '../lib/api';
 import { json } from '../lib/data';
 import { timeAgo } from '../lib/format';
+import { safeAppPath } from '../lib/safe-path';
 import type { Notification } from '../lib/types';
 import { useReconnect, useSocketEvent } from '../lib/realtime';
 
@@ -51,7 +52,8 @@ export function NotificationsBell() {
       setUnread((u) => Math.max(0, u - 1));
       void api(`/notifications/${n.id}/read`, json('POST'));
     }
-    if (n.link) nav(n.link);
+    const to = safeAppPath(n.link);
+    if (to) nav(to);
   };
 
   const readAll = async () => {

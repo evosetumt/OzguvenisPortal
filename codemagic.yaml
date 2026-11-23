@@ -1,0 +1,160 @@
+# Codemagic CI/CD: Özgüveniş mobil uygulaması (Capacitor 8, apps/web).
+# Mac olmadan iOS derlemesi bulutta yapılır. Kurulum adımları: deploy/mobile/MAGAZA.md
+#
+# Codemagic arayüzünde önceden tanımlanması gerekenler (aşağıdaki <...> adları kendi verdiğiniz adlarla değiştirin):
+#   Teams > Integrations > Developer Portal (App Store Connect API anahtarı)  → adı: OZGUVENIS_ASC   (aşağıda integrations)
+#   Code signing identities > Android keystores (.jks yükleme)                → referans adı: ozguvenis_upload
+#   Environment variables, grup "ozguvenis_mobil":
+#       VITE_API_URL                 https://evoflow.ozguvenis.com.tr
+#       VITE_NATIVE_PUSH             1  (Firebase dosyaları eklendiyse; yoksa 0)
+#       GOOGLE_SERVICE_INFO_PLIST    GoogleService-Info.plist içeriği, base64 (iOS için ZORUNLU)  [Secret]
+#       GOOGLE_SERVICES_JSON         google-services.json içeriği, base64 (Android, push için)     [Secret]
+#   Environment variables, grup "google_play":
+#       GCLOUD_SERVICE_ACCOUNT_CREDENTIALS   Play Console API hizmet hesabı JSON'u (düz metin)     [Secret]
+#   Environment variables, grup "app_store":
+#       APP_STORE_APPLE_ID           App Store Connect > Uygulama > Genel Bilgiler > Apple ID (sayı)
+#       APP_VERSION                  (isteğe bağlı) kullanıcıya görünen sürüm, ör. 1.0.1
+
+workflows:
+  ios-release:
+    name: iOS → TestFlight / App Store Connect
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: OZGUVENIS_ASC # <-- Codemagic'teki App Store Connect API anahtarı entegrasyonunun adı
+    environment:
+      groups:
+        - ozguvenis_mobil
+        - app_store
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: tr.com.ozguvenis.portal
+      node: 22
+      xcode: latest
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'mobil-v*'
+    scripts:
+      - name: Bağımlılıkları kur
+        script: npm ci
+      - name: Mobil ortam dosyası (.env.mobile)
+        script: |
+          printf 'VITE_API_URL=%s\nVITE_NATIVE_PUSH=%s\n' "${VITE_API_URL:-https://evoflow.ozguvenis.com.tr}" "${VITE_NATIVE_PUSH:-0}" > apps/web/.env.mobile
+          cat apps/web/.env.mobile
+      - name: Firebase yapılandırması (GoogleService-Info.plist)
+        script: |
+          if [ -z "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "GOOGLE_SERVICE_INFO_PLIST tanımlı değil. Firebase konsolundan iOS uygulaması ekleyip dosyayı base64 olarak girin (MAGAZA.md)." >&2
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > apps/web/ios/App/App/GoogleService-Info.plist
+          plutil -lint apps/web/ios/App/App/GoogleService-Info.plist
+      - name: Web derlemesi ve Capacitor eşitleme
+        script: |
+          cd apps/web
+          npm run build:mobile
+          npx cap sync ios
+      - name: İmzalama profilleri
+        script: xcode-project use-profiles
+      - name: Sürüm ve derleme numarası
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          case "$LATEST" in ''|*[!0-9]*) LATEST=0 ;; esac
+          NEXT=$((LATEST + 1))
+          [ "$NEXT" -lt "$BUILD_NUMBER" ] && NEXT=$BUILD_NUMBER
+          PBX=apps/web/ios/App/App.xcodeproj/project.pbxproj
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $NEXT;/g" "$PBX"
+          if [ -n "$APP_VERSION" ]; then
+            sed -i '' "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = $APP_VERSION;/g" "$PBX"
+          fi
+          grep -E "CURRENT_PROJECT_VERSION|MARKETING_VERSION" "$PBX" | sort -u
+      - name: IPA derle
+        script: |
+          xcode-project build-ipa \
+            --project "apps/web/ios/App/App.xcodeproj" \
+            --scheme "App"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # beta_groups:            # TestFlight harici test grubu (isteğe bağlı)
+        #   - Ozguvenis Test
+        submit_to_app_store: false # İncelemeye gönderme App Store Connect'ten elle yapılır (MAGAZA.md)
+
+  android-release:
+    name: Android → Google Play (iç test)
+    max_build_duration: 45
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - ozguvenis_upload # <-- Codemagic'e yüklenen yükleme anahtarının referans adı
+      groups:
+        - ozguvenis_mobil
+        - google_play
+      vars:
+        PACKAGE_NAME: tr.com.ozguvenis.portal
+      node: 22
+      java: 21
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'mobil-v*'
+    scripts:
+      - name: Bağımlılıkları kur
+        script: npm ci
+      - name: Mobil ortam dosyası (.env.mobile)
+        script: |
+          printf 'VITE_API_URL=%s\nVITE_NATIVE_PUSH=%s\n' "${VITE_API_URL:-https://evoflow.ozguvenis.com.tr}" "${VITE_NATIVE_PUSH:-0}" > apps/web/.env.mobile
+          cat apps/web/.env.mobile
+      - name: Firebase yapılandırması (google-services.json)
+        script: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > apps/web/android/app/google-services.json
+          elif [ "$VITE_NATIVE_PUSH" = "1" ]; then
+            echo "VITE_NATIVE_PUSH=1 ama GOOGLE_SERVICES_JSON yok: uygulama bildirim açarken çöker." >&2
+            exit 1
+          fi
+      - name: Web derlemesi ve Capacitor eşitleme
+        script: |
+          cd apps/web
+          npm run build:mobile
+          npx cap sync android
+      - name: İmza ayarı (keystore.properties)
+        script: |
+          cat > apps/web/android/keystore.properties <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+      - name: Sürüm kodu
+        script: |
+          LATEST=$(google-play get-latest-build-number --package-name "$PACKAGE_NAME" 2>/dev/null || echo 0)
+          case "$LATEST" in ''|*[!0-9]*) LATEST=0 ;; esac
+          NEXT=$((LATEST + 1))
+          [ "$NEXT" -lt "$BUILD_NUMBER" ] && NEXT=$BUILD_NUMBER
+          sed -i -E "s/versionCode [0-9]+/versionCode $NEXT/" apps/web/android/app/build.gradle
+          if [ -n "$APP_VERSION" ]; then
+            sed -i -E "s/versionName \"[^\"]*\"/versionName \"$APP_VERSION\"/" apps/web/android/app/build.gradle
+          fi
+          grep -E "versionCode|versionName" apps/web/android/app/build.gradle
+      - name: AAB derle
+        script: |
+          cd apps/web/android
+          chmod +x gradlew
+          ./gradlew bundleRelease
+    artifacts:
+      - apps/web/android/app/build/outputs/**/*.aab
+      - apps/web/android/app/build/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal # iç test kanalı; kapalı test için "alpha" veya oluşturduğunuz kanal adı
+        submit_as_draft: true # uygulama henüz hiç yayınlanmadıysa Play API yalnızca taslak kabul eder

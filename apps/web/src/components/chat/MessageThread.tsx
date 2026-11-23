@@ -8,6 +8,7 @@ import { fileUrl, formatSize, openFile, uploadFile, type UploadedFile } from '..
 import { emitTyping, useReconnect, useSocketEvent } from '../../lib/realtime';
 import { conversationTitle, type ChatAttachment, type ChatMessage, type Conversation } from '../../lib/types-chat';
 import { useCalls } from '../../lib/calls';
+import { QuickTaskButton } from '../QuickTaskButton';
 import type { CallKind } from '../../lib/types-call';
 
 const PAGE = 40;
@@ -23,6 +24,8 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
   const box = useRef<HTMLDivElement>(null);
   const keepFromBottom = useRef<number | null>(null); // eski mesaj yüklenince kaydırma konumunu korumak için
   const stickBottom = useRef(true);
+  // Kaydırma olayı her pikselde tetiklenir; state güncellenene kadar ikinci istek gitmesin.
+  const loadingOlder = useRef(false);
 
   const markRead = useCallback((messageId?: number) => {
     if (document.visibilityState !== 'visible') return;
@@ -49,15 +52,23 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
   useReconnect(() => void loadLatest());
 
   const loadOlder = async () => {
-    if (!hasMore || loading || !messages.length) return;
+    if (!hasMore || loading || loadingOlder.current || !messages.length) return;
+    loadingOlder.current = true;
     setLoading(true);
     try {
       const rows = await api<ChatMessage[]>(`/chat/conversations/${c.id}/messages?take=${PAGE}&before=${messages[0].id}`);
       const el = box.current;
       if (el) keepFromBottom.current = el.scrollHeight - el.scrollTop;
-      setMessages((xs) => [...rows.reverse(), ...xs]);
+      // Aynı sayfa iki kez gelse bile satırlar çoğalmasın.
+      setMessages((xs) => {
+        const seen = new Set(xs.map((x) => x.id));
+        return [...rows.reverse().filter((r) => !seen.has(r.id)), ...xs];
+      });
       setHasMore(rows.length === PAGE);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Eski mesajlar yüklenemedi');
     } finally {
+      loadingOlder.current = false;
       setLoading(false);
     }
   };
@@ -120,6 +131,8 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
 
   // Birebir sohbette "okundu" göstergesi: karşı tarafın okundu imleci.
   const other = c.type === 'direct' ? c.members.find((m) => m.id !== meId) : undefined;
+  // Görev düğmesi: birebirde karşı taraf, grupta ilk diğer üye önceden seçili (formda grup üyelerinden değiştirilebilir)
+  const taskTarget = other ?? c.members.find((m) => m.id !== meId);
   const lastMine = [...messages].reverse().find((m) => m.senderId === meId && !m.deletedAt);
 
   return (
@@ -134,6 +147,8 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
         <div className="chat-call">
           <button className="btn sm" title="Sesli ara" disabled={!!calls.active} onClick={() => startCall('audio')}><Phone size={16} /><span>Sesli</span></button>
           <button className="btn sm" title="Görüntülü ara" disabled={!!calls.active} onClick={() => startCall('video')}><Video size={16} /><span>Görüntülü</span></button>
+          {taskTarget && <QuickTaskButton labeled userId={taskTarget.id} userName={c.type === 'group' ? conversationTitle(c, meId) : taskTarget.fullName}
+            members={c.type === 'group' ? c.members.filter((m) => m.id !== meId) : undefined} />}
         </div>
         {c.type === 'group' && <button className="icon-btn" title="Grup bilgisi" onClick={onInfo}><Info size={18} /></button>}
       </header>
@@ -292,7 +307,7 @@ function Composer({ conversationId, onError }: { conversationId: number; onError
       <div className="composer-row">
         <button className="icon-btn" title="Dosya ekle" disabled={busy} onClick={() => fileInput.current?.click()}><Paperclip size={18} /></button>
         <input ref={fileInput} type="file" hidden onChange={(e) => pick(e.target.files?.[0])} />
-        <textarea ref={input} rows={1} maxLength={4000} placeholder={COMPOSER_HINT}
+        <textarea ref={input} rows={1} maxLength={4000} placeholder={COMPOSER_HINT} aria-label="Mesaj"
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} />
         <button className="btn primary send" title="Gönder" disabled={busy || (!text.trim() && !file)} onClick={send}><Send size={16} /></button>
       </div>

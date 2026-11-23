@@ -70,16 +70,26 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState('');
   const activeRef = useRef<ActiveCall | null>(null);
   activeRef.current = active;
+  // activeRef ancak render sonrası dolar; çift dokunuşta ikinci arama açılmasın diye akış başında işaretlenir.
+  const pendingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const flash = (text: string) => { setNotice(text); setTimeout(() => setNotice(''), 4000); };
 
   const end = useCallback((text?: string) => {
     activeRef.current?.session.close();
+    activeRef.current = null; // render beklemeden temizle: hemen ardından gelen accept() "zaten aramada" sanmasın
     setActive(null);
     if (text) flash(text);
   }, []);
 
   const begin = (r: JoinResult, stream: MediaStream, warning: string) => {
+    // Katılım beklenirken çıkış yapıldı ya da başka arama açıldı: kamera/mikrofon açık kalmasın, sunucuda da ayrıl.
+    if (!mountedRef.current || activeRef.current) {
+      for (const t of stream.getTracks()) t.stop();
+      void api(`/calls/${r.call.id}/leave`, json('POST')).catch(() => undefined);
+      throw new Error('Zaten bir aramadasınız');
+    }
     const session = new MeshSession(r.call.id, meId, r.iceServers, stream);
     session.connectTo(r.peers);
     setActive({ call: r.call, session, warning });
@@ -87,13 +97,18 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   /** Medyayı önce al, sonra katıl: içeridekilere giden teklif ses/görüntüyü baştan içersin. */
   const withMedia = async (video: boolean, join: () => Promise<JoinResult>) => {
-    if (activeRef.current) throw new Error('Zaten bir aramadasınız');
-    const { stream, warning } = await getLocalMedia(video);
+    if (activeRef.current || pendingRef.current) throw new Error('Zaten bir aramadasınız');
+    pendingRef.current = true;
     try {
-      begin(await join(), stream, warning);
-    } catch (e) {
-      for (const t of stream.getTracks()) t.stop();
-      throw e;
+      const { stream, warning } = await getLocalMedia(video);
+      try {
+        begin(await join(), stream, warning);
+      } catch (e) {
+        for (const t of stream.getTracks()) t.stop();
+        throw e;
+      }
+    } finally {
+      pendingRef.current = false;
     }
   };
 
@@ -123,6 +138,19 @@ export function CallProvider({ children }: { children: ReactNode }) {
     end();
     await api(`/calls/${a.call.id}/leave`, json('POST')).catch(() => undefined);
   };
+
+  // Sağlayıcı kalkınca (ör. arama sırasında çıkış) oturumu kapat: kamera/mikrofon kapansın, sunucu da bizi ayrılmış saysın.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const a = activeRef.current;
+      if (!a) return;
+      activeRef.current = null;
+      a.session.close();
+      void api(`/calls/${a.call.id}/leave`, json('POST')).catch(() => undefined);
+    };
+  }, []);
 
   // Sayfa kapanırken aramadan çık (keepalive: sayfa gitse de istek tamamlanır).
   useEffect(() => {

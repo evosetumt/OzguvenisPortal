@@ -72,16 +72,17 @@ function ExpenseSettingsInner() {
         <button className="btn primary sm" disabled={!newCat.trim()}>Ekle</button>
       </form>
 
-      <h4>Yapay zekâ ile kategori önerisi</h4>
-      <label className="check">
-        <input type="checkbox" checked={!!s?.aiCategorySuggest} disabled={!s?.aiAvailable} onChange={(e) => toggleAi(e.target.checked)} />
-        Masraf açıklamasından kategori öner (TypeSafe Jev)
-      </label>
-      <p className="hint">
-        {s?.aiAvailable
-          ? 'Açıkken masraf açıklaması (ve tutar) şirket dışındaki TypeSafe servisine gönderilir; fiş görseli gönderilmez. Varsayılan kapalıdır.'
-          : 'Sunucuda TYPESAFE_API_KEY tanımlı değil; özellik kullanılamaz.'}
-      </p>
+      {/* Yapay zekâ önerisi yalnız sunucuda TypeSafe anahtarı tanımlıysa gösterilir. */}
+      {s?.aiAvailable && (
+        <>
+          <h4>Yapay zekâ ile kategori önerisi</h4>
+          <label className="check">
+            <input type="checkbox" checked={!!s.aiCategorySuggest} onChange={(e) => toggleAi(e.target.checked)} />
+            Masraf açıklamasından kategori öner (TypeSafe Jev)
+          </label>
+          <p className="hint">Açıkken masraf açıklaması (ve tutar) şirket dışındaki TypeSafe servisine gönderilir; fiş görseli gönderilmez. Varsayılan kapalıdır.</p>
+        </>
+      )}
       {msg && <p className={msg.ok ? 'ok' : 'error'} role="status">{msg.text}</p>}
     </section>
   );

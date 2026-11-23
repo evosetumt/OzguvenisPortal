@@ -64,6 +64,10 @@ export function LoginPage() {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Giriş yapılıyor…' : 'Giriş yap'}</button>
       </form>
+      {/* Uygulamayı geliştiren firma */}
+      <footer className="login-credit">
+        <a href="https://www.evoset.com.tr" target="_blank" rel="noopener noreferrer">www.evoset.com.tr</a>
+      </footer>
     </div>
   );
 }

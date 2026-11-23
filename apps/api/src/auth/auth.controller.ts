@@ -1,3 +1,4 @@
+import { clientIp } from '../common/client-ip';
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthGuard } from './auth.guard';
@@ -22,8 +23,8 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.email, dto.password, !!dto.remember);
+  login(@Body() dto: LoginDto, @Req() req: Parameters<typeof clientIp>[0]) {
+    return this.auth.login(dto.email, dto.password, !!dto.remember, clientIp(req));
   }
 
   /** Süresi dolmamış jetonla yeni jeton alır (istemci açılışta ve periyodik olarak çağırır). */
@@ -49,10 +50,11 @@ export class AuthController {
     return { ...u, uiPrefs, permissions: req.user.permissions };
   }
 
+  /** Yanıttaki yeni jeton bu oturumu açık tutar; diğer cihazlardaki oturumlar kapanır. */
   @Post('password')
-  @HttpCode(204)
+  @HttpCode(200)
   @UseGuards(AuthGuard)
-  changePassword(@Req() req: { user: { id: number } }, @Body() dto: ChangePasswordDto) {
-    return this.auth.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
+  changePassword(@Req() req: { user: { id: number; rem?: boolean } }, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(req.user.id, dto.currentPassword, dto.newPassword, !!req.user.rem);
   }
 }

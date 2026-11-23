@@ -18,10 +18,10 @@ const ExpensesPage = page(() => import('./pages/ExpensesPage'), 'ExpensesPage');
 const ApprovalsPage = page(() => import('./pages/ApprovalsPage'), 'ApprovalsPage');
 const WorkflowsPage = page(() => import('./pages/WorkflowsPage'), 'WorkflowsPage');
 const TrackingPage = page(() => import('./pages/TrackingPage'), 'TrackingPage');
-const PaymentsPage = page(() => import('./pages/PaymentsPage'), 'PaymentsPage');
 const TeamPage = page(() => import('./pages/TeamPage'), 'TeamPage');
 const MessagesPage = page(() => import('./pages/MessagesPage'), 'MessagesPage');
 const MeetingsPage = page(() => import('./pages/MeetingsPage'), 'MeetingsPage');
+const FeedPage = page(() => import('./pages/FeedPage'), 'FeedPage');
 
 /**
  * Modül sayfası yalnızca yetkisi olana açılır (menüde gizli olsa da adres çubuğundan girilemesin).
@@ -42,6 +42,7 @@ export function App() {
       <Suspense fallback={<p className="empty">Yükleniyor…</p>}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/feed" element={<FeedPage />} />
           <Route path="/tasks" element={<Guard perm={'task.read'}><TasksPage /></Guard>} />
           <Route path="/calendar" element={<Guard perm={'calendar.read'}><CalendarPage /></Guard>} />
           <Route path="/insights" element={<Guard perm={'report.read'}><InsightsPage /></Guard>} />
@@ -51,7 +52,7 @@ export function App() {
           <Route path="/approvals" element={<ApprovalsPage />} />
           <Route path="/workflows" element={<Guard perm={'workflow.design'}><WorkflowsPage /></Guard>} />
           <Route path="/tracking" element={<Guard perm={'tracking.read'}><TrackingPage /></Guard>} />
-          <Route path="/payments" element={<Guard perm={['payment.read', 'payment.manage']}><PaymentsPage /></Guard>} />
+          <Route path="/payments" element={<Navigate to="/" replace />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/whatsapp" element={<Navigate to="/settings?tab=whatsapp" replace />} />
           <Route path="/messages" element={<MessagesPage />} />

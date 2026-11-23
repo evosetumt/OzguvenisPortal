@@ -19,11 +19,13 @@ import { ChatModule } from './chat/chat.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { CallsModule } from './calls/calls.module';
 import { PaymentsModule } from './payments/payments.module';
+import { FeedModule } from './feed/feed.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Kurulumda yapılandırma ProgramData altındadır (EVOFLOW_CONFIG); geliştirmede apps/api/.env.
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: process.env.EVOFLOW_CONFIG || '.env' }),
     PrismaModule,
     EventsModule,
     AuthModule,
@@ -43,6 +45,7 @@ import { HealthController } from './health/health.controller';
     CallsModule,         // Faz 5: WebRTC sesli/görüntülü arama
     MeetingsModule,      // Faz 5: toplantı (WebRTC oturumu CallsModule'den)
     PaymentsModule,      // Ödeme takibi: çek, kredi kartı, vergi/SGK → görev
+    FeedModule,          // Haber akışı: paylaşım, beğeni/yorum, olay kartları
   ],
   controllers: [HealthController],
 })

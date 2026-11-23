@@ -1,5 +1,7 @@
 # Bu bilgisayarı kalıcı portal sunucusu yapmak (iç ağ, şirket sertifikası)
 
+> **ESKİ YÖNTEM — kullanmayın.** Portal artık kurulum programıyla (`EvoFlow-Setup-<sürüm>.exe`) Windows servisi olarak kurulur ve `https://evoflow.ozguvenis.com.tr` adresinden Cloudflare Tunnel ile yayınlanır: bkz. [`deploy/installer/OKUBENI.md`](../installer/OKUBENI.md). Kurulum programındaki **"Eski kurulumdan aktar"** seçeneği bu yöntemle kurulmuş portalı (ayarlar, yüklenen dosyalar, başlangıç görevi) yeni kuruluma taşır. Bu sayfa yalnız geçmiş kayıt içindir.
+
 Sonuç: portal iç ağdaki herkese **https://192.168.1.244** (Wi-Fi ağından **https://192.168.2.141**) adresinden açılır. Sesli/görüntülü arama, toplantı ve bildirimler, şirket kök sertifikasını yüklemiş tüm cihazlarda çalışır. Bilgisayar açılınca, kimse oturum açmasa bile portal kendiliğinden başlar.
 
 ```
@@ -71,7 +73,7 @@ Kök sertifika değişmediği sürece cihazlarda hiçbir şey yapılmaz. Yalnız
 ```powershell
 $d = 'C:\OzguvenisPortal\certs'; $pass = (Get-Content "$d\parola.txt" -Raw).Trim(); $pw = ConvertTo-SecureString $pass -Force -AsPlainText
 $ca = Import-PfxCertificate -FilePath "$d\kok-ozel-anahtar.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $pw -Exportable
-$san = '2.5.29.17={text}IPAddress=192.168.1.244&IPAddress=192.168.2.141&IPAddress=127.0.0.1&DNS=localhost&DNS=DESKTOP-FPLQGC8'
+$san = '2.5.29.17={text}IPAddress=192.168.2.73&IPAddress=192.168.1.180&IPAddress=192.168.1.244&IPAddress=192.168.2.141&IPAddress=127.0.0.1&DNS=localhost&DNS=DESKTOP-FPLQGC8&DNS=desktop-fplqgc8.local'
 $srv = New-SelfSignedCertificate -Subject 'CN=Ozguvenis Portal' -Signer $ca -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable -NotAfter (Get-Date).AddDays(825) -TextExtension @($san, '2.5.29.37={text}1.3.6.1.5.5.7.3.1', '2.5.29.19={critical}{text}ca=0')
 Export-PfxCertificate -Cert $srv -FilePath "$d\sunucu.pfx" -Password $pw -ChainOption BuildChain
 Remove-Item "Cert:\CurrentUser\My\$($srv.Thumbprint)", "Cert:\CurrentUser\My\$($ca.Thumbprint)"

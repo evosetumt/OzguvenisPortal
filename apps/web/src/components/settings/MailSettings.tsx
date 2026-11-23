@@ -69,7 +69,7 @@ export function MailSettings() {
             <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)}
               placeholder={data.passwordSet ? 'Kayıtlı — değiştirmek için yazın' : ''} />
           </label>
-          <label>Gönderen<input required placeholder="Özgüveniş Portal <portal@ozguvenis.com.tr>" value={f.from} onChange={set('from')} /></label>
+          <label>Gönderen<input required placeholder="EvoFlow Özgüveniş <portal@ozguvenis.com.tr>" value={f.from} onChange={set('from')} /></label>
           <label>Portal adresi (e-postadaki bağlantı)<input value={f.portalUrl} onChange={set('portalUrl')} /></label>
           {data.source === 'env' && <p className="hint">Şu an sunucu ortam değişkenlerindeki ayarlar kullanılıyor; kaydettiğinizde bu ekrandaki ayarlar geçerli olur.</p>}
           <label>Deneme alıcısı<input type="email" placeholder="Boş bırakılırsa kendi adresiniz" value={testTo} onChange={(e) => setTestTo(e.target.value)} /></label>

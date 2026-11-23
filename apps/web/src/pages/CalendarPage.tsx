@@ -1,12 +1,14 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CalendarSync, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { json, useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { dateKey, formatTime, localKey, todayKey } from '../lib/format';
+import { safeAppPath } from '../lib/safe-path';
 import type { CalendarItem, UserRef } from '../lib/types';
 import { Modal } from '../components/Modal';
+import { deviceCalendarEnabled, deviceCalendarLastSync, deviceCalendarSupported, disableDeviceCalendar, enableDeviceCalendar, syncDeviceCalendar } from '../lib/device-calendar';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const VIS_LABEL = { private: 'Yalnızca davetliler', department: 'Departman', company: 'Tüm şirket' } as const;
@@ -33,10 +35,13 @@ export function CalendarPage() {
   const nav = useNavigate();
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [editing, setEditing] = useState<{ item?: CalendarItem; date?: string } | null>(null);
+  const [phoneCal, setPhoneCal] = useState(false);
   const days = useMemo(() => gridDays(month), [month]);
   const from = days[0]!, to = new Date(days[41]!.getFullYear(), days[41]!.getMonth(), days[41]!.getDate() + 1);
   const { data: items, error, reload } = useApi<CalendarItem[]>(`/calendar?from=${from.toISOString()}&to=${to.toISOString()}`);
   const { data: users } = useApi<UserRef[]>('/users/directory');
+  // Portalda etkinlik eklenip değişince cihaz takvimi de güncellensin (eşitleme kapalıysa hiçbir şey yapmaz)
+  useEffect(() => { if (items) void syncDeviceCalendar().catch(() => undefined); }, [items]);
 
   const byDay = useMemo(() => {
     const m = new Map<string, CalendarItem[]>();
@@ -54,8 +59,12 @@ export function CalendarPage() {
           <h1>Takvim</h1>
           <p className="sub">Etkinlikler ve görev bitiş tarihleri</p>
         </div>
-        <button className="btn primary" onClick={() => setEditing({ date: today })}><Plus size={16} /> Etkinlik</button>
+        <span className="cal-head-actions">
+          {deviceCalendarSupported() && <button className="btn" onClick={() => setPhoneCal(true)}><CalendarSync size={16} /> Telefon takvimi</button>}
+          <button className="btn primary" onClick={() => setEditing({ date: today })}><Plus size={16} /> Etkinlik</button>
+        </span>
       </div>
+      {phoneCal && <PhoneCalendarModal onClose={() => setPhoneCal(false)} />}
 
       <div className="glass toolbar">
         <button className="icon-btn" title="Önceki ay" onClick={() => shift(-1)}><ChevronLeft size={18} /></button>
@@ -78,7 +87,7 @@ export function CalendarPage() {
                 <button key={it.key} className={'cal-item ' + it.kind + (it.done ? ' done' : '')}
                   style={it.color ? { borderLeftColor: it.color } : undefined}
                   title={it.title}
-                  onClick={() => (it.kind === 'event' ? setEditing({ item: it }) : nav(it.link ?? `/tasks?id=${it.id}`))}>
+                  onClick={() => (it.kind === 'event' ? setEditing({ item: it }) : nav(safeAppPath(it.link) ?? `/tasks?id=${it.id}`))}>
                   {it.kind === 'event' && !it.allDay && <small>{formatTime(it.start)} </small>}
                   {it.title}
                 </button>
@@ -188,6 +197,36 @@ function EventForm({ item, date, users, onClose, onSaved }: {
           </div>
         )}
       </form>
+    </Modal>
+  );
+}
+
+/** Mobil uygulama: portal takvimini telefonun takvim uygulamasına ("Özgüveniş" takvimi) eşitleme ayarı. */
+function PhoneCalendarModal({ onClose }: { onClose(): void }) {
+  const [on, setOn] = useState(deviceCalendarEnabled());
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const last = deviceCalendarLastSync();
+  const run = async (fn: () => Promise<string>) => {
+    setBusy(true); setMsg(null);
+    try { setMsg({ ok: true, text: await fn() }); } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'İşlem başarısız' }); }
+    setOn(deviceCalendarEnabled()); setBusy(false);
+  };
+  return (
+    <Modal title="Telefon takvimi" onClose={onClose}>
+      <div className="form">
+        <p>Portal takvimindeki etkinlikler, toplantılar ve görev bitiş tarihleri telefonunuzun takvim uygulamasında <b>Özgüveniş</b> adlı ayrı bir takvimde görünür (son 30 gün ve gelecek 6 ay). Uygulama her açıldığında güncellenir. Diğer takvimlerinize dokunulmaz.</p>
+        {on && <p><small>Durum: açık{last ? ` · son eşitleme ${new Date(last).toLocaleString('tr-TR')}` : ''}</small></p>}
+        {msg && <p className={msg.ok ? '' : 'error'} role="status">{msg.text}</p>}
+        <div className="actions">
+          {on ? <>
+            <button type="button" className="btn ghost" disabled={busy} onClick={() => run(async () => { await disableDeviceCalendar(); return 'Kapatıldı; Özgüveniş takvimi telefondan kaldırıldı.'; })}>Kapat</button>
+            <button type="button" className="btn primary" disabled={busy} onClick={() => run(async () => `Eşitlendi (${await syncDeviceCalendar(true)} kayıt).`)}>{busy ? 'Eşitleniyor…' : 'Şimdi eşitle'}</button>
+          </> : (
+            <button type="button" className="btn primary" disabled={busy} onClick={() => run(async () => `Açıldı; ${await enableDeviceCalendar()} kayıt telefona eklendi.`)}>{busy ? 'Ayarlanıyor…' : 'Telefon takvimine ekle'}</button>
+          )}
+        </div>
+      </div>
     </Modal>
   );
 }

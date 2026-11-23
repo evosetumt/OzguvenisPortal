@@ -28,6 +28,7 @@ export function MessagesPage() {
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
   const [info, setInfo] = useState(false);
+  const [directError, setDirectError] = useState('');
 
   const select = (id: number | null) => setParams(id ? { c: String(id) } : {});
   const upsert = (c: Conversation) => setConvs((xs) => [c, ...(xs ?? []).filter((x) => x.id !== c.id)]);
@@ -36,18 +37,26 @@ export function MessagesPage() {
   const toId = Number(params.get('to')) || null;
   useEffect(() => {
     if (!toId || toId === meId) return;
+    setDirectError('');
     api<Conversation>('/chat/direct', json('POST', { userId: toId }))
       .then((c) => { upsert(c); setParams({ c: String(c.id) }, { replace: true }); })
-      .catch(() => setParams({}, { replace: true }));
+      .catch((e) => {
+        // Sessizce yutulursa "Mesaj gönder" hiçbir şey yapmamış gibi görünür (pasif kullanıcı, yetki, ağ hatası).
+        setDirectError(e instanceof Error ? e.message : 'Sohbet açılamadı');
+        setParams({}, { replace: true });
+      });
   }, [toId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useReconnect(() => void reload());
   useSocketEvent<ChatMessage>('message:new', (m) => {
-    const list = convs ?? [];
-    const c = list.find((x) => x.id === m.conversationId);
-    if (!c) { void reload(); return; } // yeni eklendiğimiz bir sohbet
-    const unread = m.senderId !== meId && m.conversationId !== activeId ? c.unread + 1 : c.unread;
-    setConvs([{ ...c, lastMessage: m, lastMessageAt: m.createdAt, unread }, ...list.filter((x) => x.id !== c.id)]);
+    // Fonksiyonel güncelleme: art arda gelen iki mesajda ilki kaybolmasın.
+    if (!convs?.some((x) => x.id === m.conversationId)) { void reload(); return; } // yeni eklendiğimiz bir sohbet
+    setConvs((xs) => {
+      const c = xs?.find((x) => x.id === m.conversationId);
+      if (!xs || !c) return xs;
+      const unread = m.senderId !== meId && m.conversationId !== activeId ? c.unread + 1 : c.unread;
+      return [{ ...c, lastMessage: m, lastMessageAt: m.createdAt, unread }, ...xs.filter((x) => x.id !== c.id)];
+    });
   });
   useSocketEvent<ChatMessage>('message:updated', (m) => {
     setConvs((xs) => xs && xs.map((c) => (c.lastMessage?.id === m.id ? { ...c, lastMessage: m } : c)));
@@ -75,8 +84,9 @@ export function MessagesPage() {
           <h2>Mesajlar</h2>
           <button className="icon-btn" title="Yeni sohbet" onClick={() => setCreating(true)}><Plus size={18} /></button>
         </header>
-        <label className="chat-search"><Search size={14} /><input placeholder="Sohbet ara…" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+        <label className="chat-search"><Search size={14} /><input placeholder="Sohbet ara…" aria-label="Sohbet ara" value={q} onChange={(e) => setQ(e.target.value)} /></label>
         {error && <p className="error">{error}</p>}
+        {directError && <p className="error" role="alert">{directError}</p>}
         {convs && convs.length === 0 && <p className="empty">Henüz sohbet yok. <button className="link-btn" onClick={() => setCreating(true)}>Yeni sohbet başlatın</button></p>}
         <ul className="conv-list">
           {list.map((c) => (

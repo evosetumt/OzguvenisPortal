@@ -1,0 +1,96 @@
+/* Haber akışı: solda kartlar, sağda "Beni bekleyenler / Şimdi aktif" */
+.fd-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); width: 100%; max-width: 1200px; gap: clamp(18px, 2.4vw, 40px); align-items: start; }
+.fd-stream { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.fd-filter { min-width: 200px; }
+
+/* Paylaşım kutusu */
+.fd-composer { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: var(--r-md); }
+.fd-composer textarea { width: 100%; resize: none; background: transparent; border: 0; padding: 6px 4px; line-height: 1.5; outline: none; }
+.fd-composer.open textarea { resize: vertical; background: var(--fill); padding: 10px 12px; border-radius: 12px; }
+.fd-composer__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.fd-cust { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13.5px; font-weight: 560; }
+.fd-cust .customer-picker input { width: 220px; }
+.fd-spacer { flex: 1; }
+
+/* Kart */
+.fd-card { padding: 16px 18px 6px; border-radius: var(--r-md); transition: box-shadow 0.2s; }
+.fd-head { display: flex; gap: 14px; align-items: flex-start; }
+.fd-sys { display: grid; place-items: center; width: 64px; height: 64px; flex: none; color: var(--orange); }
+.fd-av { position: relative; flex: none; display: inline-grid; }
+.fd-av .avatar.lg { width: 64px; height: 64px; font-size: 21px; }
+.fd-badge {
+  position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--orange); color: #fff; box-shadow: 0 0 0 2px var(--glass-solid);
+}
+.fd-badge.task_completed { background: var(--success, #2fbf4f); }
+.fd-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.fd-who { font-size: 15px; font-weight: 650; color: var(--accent-ink); display: flex; align-items: center; gap: 6px; }
+.fd-new { font: 700 10.5px/1 var(--font); padding: 3px 5px; border-radius: 4px; background: color-mix(in srgb, var(--orange) 70%, transparent); color: #fff; }
+.fd-line { display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.01em; }
+.fd-line svg { color: var(--accent-ink); flex: none; }
+.fd-line a { color: inherit; text-decoration: none; }
+.fd-line a:hover { color: var(--text); text-decoration: underline; }
+.fd-rel { font-size: 14px; font-weight: 650; color: var(--orange); text-decoration: none; }
+a.fd-rel:hover { text-decoration: underline; }
+.fd-meta small { font-size: 12.5px; }
+.fd-del { opacity: 0; transition: opacity 0.15s; }
+.fd-card:hover .fd-del, .fd-del:focus-visible { opacity: 1; }
+.fd-body { margin: 12px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; font-size: 14.5px; }
+.fd-card.is-system .fd-body { padding-left: 78px; color: var(--text); }
+
+.fd-acts { list-style: none; margin: 0 0 10px; padding: 8px 12px; display: grid; gap: 6px; border-radius: 12px; background: var(--fill); }
+.fd-acts li { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+.fd-acts a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); text-decoration: none; font-weight: 560; }
+.fd-acts li.done a { color: var(--text-2); text-decoration: line-through; }
+
+.fd-actions { display: flex; gap: 4px; padding: 6px 0; border-top: 1px solid var(--fill); }
+.fd-actions button {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--text-2); font: 560 13.5px var(--font); cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.fd-actions button:hover { background: var(--fill); color: var(--text); }
+.fd-actions button.on { color: var(--accent-ink); }
+.fd-actions button.on svg { fill: currentColor; fill-opacity: 0.2; }
+.fd-count { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.fd-comments { display: grid; gap: 10px; padding: 10px 0 12px; border-top: 1px solid var(--fill); }
+.fd-comment { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.fd-comment b { font-size: 13.5px; }
+.fd-comment small { font-size: 12px; }
+.fd-comment p { margin: 2px 0 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fd-comment .icon-btn { opacity: 0; } .fd-comment:hover .icon-btn { opacity: 1; }
+.fd-reply { display: flex; gap: 8px; }
+.fd-reply input { flex: 1; }
+.fd-err { padding-bottom: 10px; }
+.fd-more { align-self: center; margin: 6px 0 20px; }
+.fd-empty { padding: 30px 0; text-align: center; }
+.fd-modal-ctx { margin: 0 0 4px; color: var(--orange); font-weight: 600; }
+
+/* Sağ panel */
+.fd-side { position: sticky; top: 16px; display: grid; gap: 26px; }
+.fd-side h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font: 700 12.5px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-ink); }
+.fd-add { display: inline-grid; color: var(--accent-ink); }
+.fd-wait, .fd-active { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.fd-wait li { display: flex; align-items: center; gap: 9px; font-size: 14px; }
+.fd-wait li svg { color: var(--text-2); flex: none; }
+.fd-wait a { color: var(--text); text-decoration: none; }
+.fd-wait a:hover { text-decoration: underline; }
+.fd-wait li.late, .fd-wait li.late svg { color: var(--danger); }
+.fd-wait li.late a { color: var(--danger); }
+.fd-active li { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; }
+.fd-active a { color: var(--text); text-decoration: none; line-height: 1.4; }
+.fd-active a:hover { text-decoration: underline; }
+.fd-active b { font-weight: 650; }
+.fd-active b.late { color: var(--danger); }
+.fd-active b.today { color: var(--orange); }
+.fd-side .empty { margin: 0; font-size: 14px; }
+
+@media (max-width: 1100px) {
+  .fd-layout { grid-template-columns: minmax(0, 1fr); }
+  .fd-side { position: static; order: -1; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+@media (max-width: 600px) {
+  .fd-card.is-system .fd-body { padding-left: 0; }
+  .fd-actions button { padding: 0 8px; font-size: 13px; }
+  .fd-cust .customer-picker input { width: 100%; }
+}

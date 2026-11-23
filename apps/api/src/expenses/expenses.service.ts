@@ -180,8 +180,11 @@ export class ExpensesService implements OnModuleInit {
   }
 
   async updateCategory(u: AuthUser, id: number, dto: UpdateCategoryDto) {
-    const c = await this.prisma.expenseCategory.update({ where: { id }, data: { ...dto, name: dto.name?.trim() } }).catch(() => null);
-    if (!c) throw new NotFoundException('Kategori bulunamadı');
+    // Yalnızca "kayıt yok" 404 olur; aynı ad (P2002 → 409, genel filtre) ve bağlantı hataları olduğu gibi yukarı gider.
+    const c = await this.prisma.expenseCategory.update({ where: { id }, data: { ...dto, name: dto.name?.trim() } }).catch((e) => {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') throw new NotFoundException('Kategori bulunamadı');
+      throw e;
+    });
     await this.audit.log(u.id, 'expense_category.update', 'expense_category', id, dto);
     return c;
   }

@@ -1,5 +1,5 @@
 import {
-  BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit,
+  BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -164,6 +164,10 @@ export class ProcessEngine implements OnModuleInit {
     });
     if (!task) throw new NotFoundException('Görev bulunamadı');
     if (task.status !== 'open') throw new ConflictException('Bu görev zaten tamamlanmış');
+    // Görevler ayrılığı: rol/birim üzerinden açılan onayı, süreci başlatan kişi kendisi veremez.
+    if (task.instance.startedById === u.id && task.assigneeId !== u.id) {
+      throw new ForbiddenException('Kendi başlattığınız süreci onaylayamazsınız');
+    }
     const model = await this.model(task.instance.definitionId);
     const el = model.elements.get(task.elementId);
     if (!el) throw new BadRequestException('Görev süreç tanımında bulunamadı');
@@ -426,7 +430,9 @@ export class ProcessEngine implements OnModuleInit {
         ? `${(await this.prisma.department.findUnique({ where: { id: pt.candidateDeptId }, select: { name: true } }))?.name ?? 'Birim'} birimindeki herkes`
         : pt.candidateRole ? `${pt.candidateRole} rolündekiler` : null;
       const last = await this.prisma.task.aggregate({ where: { statusId: status.id }, _max: { sortOrder: true } });
-      const task = await this.prisma.task.create({
+      // Görev ve onay adımı bağlantısı birlikte yazılır: yarıda kalırsa açılışta ikinci kopya açılmaz.
+      const task = await this.prisma.$transaction(async (tx) => {
+       const created = await tx.task.create({
         data: {
           title: `${pt.name}: ${pt.instance.businessKey ?? pt.instance.definition.name}`.slice(0, 250),
           description: [
@@ -438,8 +444,10 @@ export class ProcessEngine implements OnModuleInit {
           relatedType: 'process_task', relatedId: String(pt.id), sortOrder: (last._max.sortOrder ?? -1) + 1,
           watchers: { create: [...new Set([...recipientIds, ...(assigneeId ? [assigneeId] : [])])].map((userId) => ({ userId })) },
         },
+       });
+       await tx.processTask.update({ where: { id: pt.id }, data: { taskId: created.id } });
+       return created;
       });
-      await this.prisma.processTask.update({ where: { id: pt.id }, data: { taskId: task.id } });
       this.events.emit('task.created', null, { taskId: task.id, title: task.title });
     } catch (e) {
       console.error(`Onay görevi #${processTaskId} Görevler listesine yansıtılamadı`, e);

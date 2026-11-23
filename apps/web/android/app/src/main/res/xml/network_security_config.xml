@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Portal iç ağda kendi kök sertifikamızla (Özgüveniş iç CA) HTTPS sunar; uygulama bu köke ve sistem köklerine güvenir. -->
+<!--
+  Portal genel internette https://evoflow.ozguvenis.com.tr adresinden (Cloudflare Tunnel, Cloudflare TLS sertifikası) yayınlanır.
+  Uygulama yalnızca sistemin güvendiği kök sertifikalara güvenir; şifresiz (http) trafiğe izin verilmez.
+  (Eski iç ağ kök sertifikası "ozguvenis_kok" artık kullanılmıyor.)
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="@raw/ozguvenis_kok" />
         </trust-anchors>
     </base-config>
 </network-security-config>

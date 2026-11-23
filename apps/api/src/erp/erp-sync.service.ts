@@ -117,7 +117,8 @@ export class ErpSyncService implements OnModuleInit, OnApplicationBootstrap, OnA
   }
 
   onApplicationBootstrap() {
-    if (!this.netsis.configured || this.intervalMinutes === 0) return;
+    // Bağlantı sonradan Ayarlar ekranından girilebilir; zamanlayıcı her durumda kurulur, trigger() yapılandırılmamışsa çalışmaz.
+    if (this.intervalMinutes === 0) return;
     setTimeout(() => void this.trigger('schedule'), 20_000).unref();
     this.timer = setInterval(() => void this.trigger('schedule'), this.intervalMinutes * MIN);
     this.timer.unref();
@@ -130,7 +131,10 @@ export class ErpSyncService implements OnModuleInit, OnApplicationBootstrap, OnA
   /** Senkronu başlatır; zaten çalışıyorsa yenisini başlatmaz (false döner). */
   trigger(trigger: 'schedule' | 'manual'): boolean {
     if (this.running || !this.netsis.configured) return false;
-    this.running = this.runAll(trigger).finally(() => (this.running = null));
+    // Yakalanmayan hata Node'da süreci düşürür: adım dışındaki (bağlam, autoClose) hatalar da burada loglanır.
+    this.running = this.runAll(trigger)
+      .catch((e) => console.error('Netsis senkronu çöktü', e))
+      .finally(() => (this.running = null));
     return true;
   }
 

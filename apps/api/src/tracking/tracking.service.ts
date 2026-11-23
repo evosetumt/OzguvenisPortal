@@ -260,7 +260,9 @@ export class TrackingService implements OnModuleInit {
     if (!endDate) throw new BadRequestException('Yenileme periyodu yok; yeni bitiş tarihini girin');
     if (endDate <= item.endDate) throw new BadRequestException('Yeni bitiş, eski bitişten sonra olmalı');
     const next = await this.prisma.$transaction(async (tx) => {
-      await tx.trackedItem.update({ where: { id }, data: { status: 'renewed' } });
+      // Koşullu geçiş: çift tıklamada iki istek de dıştaki kontrolü geçebilir; yalnızca biri "renewed" yapıp ardılı açar.
+      const claimed = await tx.trackedItem.updateMany({ where: { id, status: { not: 'renewed' } }, data: { status: 'renewed' } });
+      if (!claimed.count) throw new ConflictException('Bu kayıt zaten yenilenmiş');
       return tx.trackedItem.create({
         data: {
           category: item.category,

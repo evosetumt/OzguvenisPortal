@@ -1,14 +1,49 @@
-import { Controller, ForbiddenException, Get, Headers, HttpCode, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthGuard, AuthUser } from '../auth/auth.guard';
+import { CurrentUser } from '../common/current-user.decorator';
+import { AuditService } from '../common/audit.service';
 import { RequirePermission } from '../common/permissions.decorator';
 import { WhatsappService } from './whatsapp.service';
+
+class WaSettingsDto {
+  @IsString() @Matches(/^\d{5,30}$/, { message: 'Telefon numarası kimliği (Phone number ID) yalnız rakamlardan oluşur' }) phoneNumberId: string;
+  @IsString() @Matches(/^(\d{5,30})?$/, { message: 'WhatsApp Business hesap kimliği (WABA ID) yalnız rakamlardan oluşur' }) wabaId: string;
+  @IsString() @Matches(/^(v\d{1,3}\.\d{1,2})?$/, { message: 'API sürümü v21.0 biçiminde olmalı' }) apiVersion: string;
+  /** Gizli alanlar: gönderilmezse kayıtlı değer korunur, boş metin silinir. */
+  @IsOptional() @IsString() @MaxLength(1000) accessToken?: string;
+  @IsOptional() @IsString() @MaxLength(200) appSecret?: string;
+  @IsOptional() @IsString() @MaxLength(200) verifyToken?: string;
+}
 
 @Controller('whatsapp')
 @UseGuards(AuthGuard)
 export class WhatsappController {
-  constructor(private readonly svc: WhatsappService) {}
+  constructor(private readonly svc: WhatsappService, private readonly audit: AuditService) {}
+
+  /** Ayarlar → WhatsApp: Meta Cloud API bağlantı bilgileri (gizli alanlar dönmez). */
+  @Get('settings')
+  @RequirePermission('notification.manage')
+  settings() {
+    return this.svc.getSettings();
+  }
+
+  @Put('settings')
+  @RequirePermission('notification.manage')
+  async saveSettings(@CurrentUser() u: AuthUser, @Body() dto: WaSettingsDto) {
+    const t = (v?: string) => (v === undefined ? undefined : v.trim());
+    const r = await this.svc.saveSettings({
+      phoneNumberId: dto.phoneNumberId.trim(), wabaId: dto.wabaId.trim(), apiVersion: dto.apiVersion.trim(),
+      accessToken: t(dto.accessToken), appSecret: t(dto.appSecret), verifyToken: t(dto.verifyToken),
+    });
+    await this.audit.log(u.id, 'whatsapp.settings', 'setting', 'whatsapp.config', {
+      phoneNumberId: r.phoneNumberId, wabaId: r.wabaId, apiVersion: r.apiVersion,
+      changed: (['accessToken', 'appSecret', 'verifyToken'] as const).filter((k) => dto[k] !== undefined),
+    });
+    return r;
+  }
 
   @Get('status')
   @RequirePermission('whatsapp.send')

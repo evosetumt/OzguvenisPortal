@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { X509Certificate } from 'node:crypto';
 import { existsSync, readFileSync, statSync, createReadStream } from 'node:fs';
 
 /**
@@ -10,6 +11,10 @@ import { existsSync, readFileSync, statSync, createReadStream } from 'node:fs';
 const apkFile = () => process.env.ANDROID_APK_FILE ?? '';
 export function startCertificateHelper(port: number, caFile: string, httpsPort: number) {
   const cer = readFileSync(caFile);
+  // Sayfa düz HTTP ile sunulur: ağdaki biri dosyayı değiştirebilir. Kullanıcı parmak izini BT'nin verdiği değerle
+  // karşılaştırarak doğru kökü yüklediğinden emin olur.
+  const fingerprint = new X509Certificate(cer).fingerprint256;
+  console.log(`Kök sertifika SHA-256 parmak izi: ${fingerprint}`);
   const server = createServer((req, res) => {
     const host = (req.headers.host ?? 'localhost').replace(/:\d+$/, '');
     const portal = `https://${host}${httpsPort === 443 ? '' : `:${httpsPort}`}/`;
@@ -38,13 +43,13 @@ export function startCertificateHelper(port: number, caFile: string, httpsPort: 
       return;
     }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-    res.end(page(portal));
+    res.end(page(portal, fingerprint));
   });
   server.on('error', (e) => console.error(`Sertifika sayfası ${port} portunda açılamadı:`, e.message));
   server.listen(port, '0.0.0.0', () => console.log(`Sertifika yükleme sayfası: http://<bu-bilgisayar>${port === 80 ? '' : `:${port}`}/`));
 }
 
-function page(portal: string) {
+function page(portal: string, fingerprint: string) {
   return `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Özgüveniş Portal · Bağlantı kurulumu</title>
@@ -58,11 +63,16 @@ main{max-width:720px;margin:0 auto;padding:28px 16px 48px}h1{font-size:24px;marg
 .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
 #ok{display:none;border-color:var(--ok)}#ok b{color:var(--ok)}
 details{border-top:1px solid var(--line);padding:10px 0}details:first-of-type{border-top:0}summary{cursor:pointer;font-weight:600}
+#fp{border-color:#e8833a}#fp code{display:block;margin:8px 0;padding:8px 10px;font-size:14px;word-break:break-all;user-select:all}
 ol{margin:8px 0 4px;padding-left:22px}li{margin:4px 0}code{background:var(--bg);padding:1px 6px;border-radius:6px}
 </style></head><body><main>
 <h1>Özgüveniş Portal</h1>
 <p class="muted">Portal şirket içi güvenli bağlantı (HTTPS) kullanır. Her cihazda <b>bir kez</b> şirket sertifikasını yüklemeniz gerekir; sonra kamera, mikrofon ve bildirimler çalışır.</p>
 <div class="card" id="ok"><p><b>✓ Bu cihazda sertifika yüklü.</b></p><a class="btn" href="${portal}">Portala git</a></div>
+<div class="card" id="fp"><p><b>Güvenlik kontrolü · SHA-256 parmak izi</b></p>
+<code>${fingerprint}</code>
+<p class="muted">Yüklemeden önce bu değeri BT yöneticinizin size verdiği parmak iziyle karşılaştırın; sertifikayı açınca görünen
+SHA-256 parmak izi (cihaz gösteriyorsa) de aynı olmalıdır. Tek karakter bile farklıysa <b>yüklemeyin</b> ve BT'ye haber verin.</p></div>
 <div class="card" id="steps">
 <a class="btn" href="/ozguvenis-kok-sertifika.cer">1 · Sertifikayı indir</a>
 <a class="btn ghost" href="${portal}">2 · Yükledikten sonra portala git</a>

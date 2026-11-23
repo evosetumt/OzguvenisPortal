@@ -8,7 +8,11 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { AuditService } from '../common/audit.service';
 import { EventsService } from '../events/events.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionService } from '../auth/session.service';
 import { ADMIN_ROLE, PERMISSION_BY_CODE, PERMISSION_CATALOG, type Scope } from '../common/permission-catalog';
+
+/** Kapsam genişliği: daralma (ör. all → own) oturum iptali gerektirir. */
+const RANK: Record<string, number> = { own: 1, department: 2, all: 3 };
 
 class RoleDto {
   @IsString() @MinLength(2) @MaxLength(80) name: string;
@@ -29,7 +33,12 @@ class UpdateRoleDto {
 @Controller()
 @UseGuards(AuthGuard)
 export class RolesController {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService, private readonly events: EventsService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly events: EventsService,
+    private readonly sessions: SessionService,
+  ) {}
 
   @Get('permissions/catalog')
   @RequirePermission('user.manage')
@@ -99,11 +108,14 @@ export class RolesController {
       }
     });
 
-    const before = Object.fromEntries(role.permissions.map((p) => [p.permission.code, p.scope]));
+    const before: Record<string, string> = Object.fromEntries(role.permissions.map((p) => [p.permission.code, p.scope]));
     await this.audit.log(me.id, 'role.update', 'role', id, {
       name: dto.name, permissions: Object.fromEntries(changes.map(([c, s]) => [c, { önce: before[c] ?? null, sonra: s }])),
     });
-    await this.notifyMembers(id);
+    // Yetki kaldırıldı/daraltıldıysa eski jetonlar o yetkiyi taşımaya devam etmesin: üyelerin oturumu düşer.
+    // Genişletmede gerek yok; istemci auth.changed ile jetonunu yeniler.
+    const narrowed = changes.some(([c, s]) => before[c] && (s === null || RANK[s] < RANK[before[c]]));
+    await this.notifyMembers(id, narrowed ? me.id : undefined);
     return (await this.roles()).find((r) => r.id === id);
   }
 
@@ -119,9 +131,15 @@ export class RolesController {
     await this.audit.log(me.id, 'role.delete', 'role', id, { name: role.name });
   }
 
-  /** Roldeki kullanıcıların açık oturumları yetkilerini hemen yenilesin. */
-  private async notifyMembers(roleId: number) {
-    const users = await this.prisma.userRole.findMany({ where: { roleId }, select: { userId: true } });
-    if (users.length) this.events.emit('auth.changed', null, { userIds: users.map((u) => u.userId) });
+  /**
+   * Roldeki kullanıcıların açık oturumları yetkilerini hemen yenilesin.
+   * `revokeExcept` verilirse üyelerin oturumları iptal edilir; değişikliği yapan yönetici hariç
+   * (kendi oturumu kopmasın, auth.changed ile yenilenir).
+   */
+  private async notifyMembers(roleId: number, revokeExcept?: number) {
+    const ids = (await this.prisma.userRole.findMany({ where: { roleId }, select: { userId: true } })).map((u) => u.userId);
+    if (!ids.length) return;
+    this.events.emit('auth.changed', null, { userIds: ids });
+    if (revokeExcept !== undefined) await this.sessions.revoke(ids.filter((u) => u !== revokeExcept));
   }
 }

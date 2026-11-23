@@ -1,8 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../common/settings.service';
+import { openSecret, sealSecret } from '../common/secret-box';
 import type { ChannelSender, NewNotification } from '../notifications/notifications.service';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -13,27 +13,13 @@ export interface SmtpConfig {
   port: number;
   secure: boolean; // 465 için true, 587 (STARTTLS) için false
   user: string;
-  from: string; // "Özgüveniş Portal <portal@ozguvenis.com.tr>"
+  from: string; // "EvoFlow Özgüveniş <portal@ozguvenis.com.tr>"
   portalUrl: string; // e-postadaki "Portalda aç" bağlantısı
 }
 type Stored = SmtpConfig & { password?: string }; // password: şifreli (v1:iv:tag:veri)
 
 const KEY = 'mail.smtp';
-// Şifre veritabanında düz durmasın: JWT_SECRET'tan türetilen anahtarla AES-256-GCM. Sır değişirse şifre yeniden girilir.
-const secretKey = () => createHash('sha256').update(`${process.env.JWT_SECRET ?? ''}:mail.smtp`).digest();
-const seal = (plain: string) => {
-  const iv = randomBytes(12);
-  const c = createCipheriv('aes-256-gcm', secretKey(), iv);
-  const data = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
-  return ['v1', iv.toString('base64'), c.getAuthTag().toString('base64'), data.toString('base64')].join(':');
-};
-const open = (sealed: string) => {
-  const [v, iv, tag, data] = sealed.split(':');
-  if (v !== 'v1') throw new Error('Bilinmeyen şifre biçimi');
-  const d = createDecipheriv('aes-256-gcm', secretKey(), Buffer.from(iv, 'base64'));
-  d.setAuthTag(Buffer.from(tag, 'base64'));
-  return Buffer.concat([d.update(Buffer.from(data, 'base64')), d.final()]).toString('utf8');
-};
+// Şifre veritabanında şifreli durur (secret-box, amaç anahtarı mail.smtp: önceki kayıtlarla uyumlu).
 
 /** Ortam değişkenleriyle eski kurulum: ekrandan ayar girilmemişse bunlar kullanılır. */
 function fromEnv(): (SmtpConfig & { pass?: string }) | null {
@@ -67,7 +53,7 @@ export class EmailService implements ChannelSender, OnModuleInit {
       return;
     }
     let pass: string | undefined;
-    try { pass = s.password ? open(s.password) : undefined; } catch { pass = undefined; } // JWT_SECRET değiştiyse şifre yeniden girilir
+    try { pass = s.password ? openSecret(s.password, KEY) : undefined; } catch { pass = undefined; } // JWT_SECRET değiştiyse şifre yeniden girilir
     const { password: _sealed, ...rest } = s;
     this.cfg = { ...rest, pass };
     this.source = 'settings';
@@ -90,7 +76,7 @@ export class EmailService implements ChannelSender, OnModuleInit {
   async saveConfig(c: SmtpConfig & { password?: string }) {
     const prev = await this.settings.get<Stored | null>(KEY, null);
     const { password, ...rest } = c;
-    const sealed = password === undefined ? prev?.password : password ? seal(password) : undefined;
+    const sealed = password === undefined ? prev?.password : password ? sealSecret(password, KEY) : undefined;
     await this.settings.set(KEY, { ...rest, ...(sealed ? { password: sealed } : {}) });
     await this.load();
     return this.getConfig();
@@ -111,7 +97,7 @@ export class EmailService implements ChannelSender, OnModuleInit {
   async sendTest(to: string, fullName: string) {
     if (!this.cfg) throw new Error('SMTP ayarları girilmemiş');
     await this.tx.verify();
-    await this.mail(to, fullName, { type: 'system.test', title: 'Deneme e-postası', body: 'Özgüveniş Portal e-posta ayarları çalışıyor.', link: '/settings' });
+    await this.mail(to, fullName, { type: 'system.test', title: 'Deneme e-postası', body: 'EvoFlow Özgüveniş e-posta ayarları çalışıyor.', link: '/settings' });
   }
 
   async send(userId: number, n: NewNotification) {
@@ -128,7 +114,7 @@ export class EmailService implements ChannelSender, OnModuleInit {
 <h2 style="font-size:18px;margin:16px 0 8px">${esc(n.title)}</h2>
 ${n.body ? `<p>${esc(n.body)}</p>` : ''}
 ${url ? `<p><a href="${esc(url)}" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Portalda aç</a></p>` : ''}
-<p style="color:#6b7280;font-size:12px">Bu e-posta Özgüveniş Portal tarafından otomatik gönderildi. Bildirim tercihlerinizi Ayarlar sayfasından değiştirebilirsiniz.</p>
+<p style="color:#6b7280;font-size:12px">Bu e-posta EvoFlow Özgüveniş tarafından otomatik gönderildi. Bildirim tercihlerinizi Ayarlar sayfasından değiştirebilirsiniz.</p>
 </body></html>`;
     await this.tx.sendMail({
       from: this.cfg!.from,

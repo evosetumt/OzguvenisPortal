@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { TemplateDef, WhatsappClient, waConfig } from './whatsapp.client';
+import { TemplateDef, WaSettingsInput, WhatsappClient } from './whatsapp.client';
 
 const OPT_OUT_WORDS = new Set(['STOP', 'DUR', 'IPTAL', 'İPTAL', 'UNSUBSCRIBE']);
 /** Olaya özel bildirim şablonları (Meta'da onaylı olmalı); ayarlardan değiştirilebilir. */
@@ -112,7 +112,7 @@ export class WhatsappService implements OnModuleInit {
   }
 
   status() {
-    const c = waConfig();
+    const c = this.client.config();
     return {
       configured: this.client.isConfigured(),
       phoneNumberIdSet: !!c.phoneNumberId,
@@ -124,11 +124,24 @@ export class WhatsappService implements OnModuleInit {
     };
   }
 
+  // ---------- Bağlantı ayarları ----------
+
+  getSettings() {
+    return this.client.getSettings();
+  }
+
+  /** Bağlantı değişince Meta şablon önbelleği de temizlenir (başka hesabın şablonları kalmasın). */
+  async saveSettings(input: WaSettingsInput) {
+    const r = await this.client.saveSettings(input);
+    this.templateCache = null;
+    return r;
+  }
+
   // ---------- Şablonlar ----------
 
   /** Meta'dan (WABA tanımlıysa, 10 dk önbellek) ya da settings'teki elle girilmiş onaylı şablon listesi. */
   async templates(): Promise<TemplateDef[]> {
-    if (waConfig().wabaId && this.client.isConfigured()) {
+    if (this.client.config().wabaId && this.client.isConfigured()) {
       if (this.templateCache && Date.now() - this.templateCache.at < 600000) return this.templateCache.list;
       try {
         const list = await this.client.approvedTemplates();
@@ -175,14 +188,14 @@ export class WhatsappService implements OnModuleInit {
   // ---------- Webhook ----------
 
   verifyChallenge(mode?: string, token?: string, challenge?: string) {
-    const { verifyToken } = waConfig();
+    const { verifyToken } = this.client.config();
     if (mode === 'subscribe' && verifyToken && token && safeEqual(token, verifyToken) && challenge) return challenge;
     return null;
   }
 
   /** X-Hub-Signature-256: "sha256=<hex HMAC(app secret, ham gövde)>". */
   verifySignature(raw: Buffer | undefined, header: string | undefined) {
-    const { appSecret } = waConfig();
+    const { appSecret } = this.client.config();
     if (!appSecret || !raw || !header?.startsWith('sha256=')) return false;
     const expected = createHmac('sha256', appSecret).update(raw).digest('hex');
     return safeEqual(header.slice(7), expected);

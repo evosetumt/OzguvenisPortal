@@ -40,6 +40,10 @@
 /* ---------- Profil paneli ---------- */
 .drawer.pf { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 16px; width: min(440px, 100%); }
 .drawer.pf > .icon-btn.pf-close { position: absolute; top: 14px; right: 14px; left: auto; z-index: 2; background: var(--fill); }
+@media (max-width: 820px) {
+  .drawer.pf { padding-top: calc(16px + var(--sat)); padding-bottom: calc(16px + var(--sab)); }
+  .drawer.pf > .icon-btn.pf-close { top: calc(14px + var(--sat)); }
+}
 .pf-hero {
   display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 24px;
   background: linear-gradient(140deg, color-mix(in srgb, var(--hue) 22%, transparent), color-mix(in srgb, var(--hue) 6%, transparent));

@@ -2,27 +2,27 @@ import { useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
 import { json } from '../lib/data';
 import { useAuth } from '../lib/auth';
-import { PRIORITY_LABEL, TASK_TYPE_LABEL, type Priority, type Project, type TaskDetail, type TaskStatus, type TaskType, type UserRef } from '../lib/types';
+import { PRIORITY_LABEL, TASK_TYPE_LABEL, type Priority, type TaskDetail, type TaskStatus, type TaskType, type UserRef } from '../lib/types';
 import { Modal } from './Modal';
 import { CustomerPicker } from './CustomerPicker';
 
 interface Props {
-  projects: Project[];
   statuses: TaskStatus[];
   users: UserRef[];
   initialStatusId?: number;
+  /** Görev açılacak kişi (Ekip / Mesajlar kartındaki + düğmesi) */
+  initialAssigneeId?: number;
   onClose(): void;
   onCreated(t: TaskDetail): void;
 }
 
-export function TaskForm({ projects, statuses, users, initialStatusId, onClose, onCreated }: Props) {
+export function TaskForm({ statuses, users, initialStatusId, initialAssigneeId, onClose, onCreated }: Props) {
   const { me } = useAuth();
   const [f, setF] = useState({
     title: '',
     description: '',
-    projectId: '',
     statusId: String(initialStatusId ?? statuses[0]?.id ?? ''),
-    assigneeId: String(me!.id),
+    assigneeId: String(initialAssigneeId ?? me!.id),
     dueDate: '',
     priority: 'normal' as Priority,
     taskType: 'general' as TaskType,
@@ -39,7 +39,6 @@ export function TaskForm({ projects, statuses, users, initialStatusId, onClose, 
       const t = await api<TaskDetail>('/tasks', json('POST', {
         title: f.title,
         description: f.description || undefined,
-        projectId: f.projectId ? Number(f.projectId) : null,
         statusId: Number(f.statusId),
         assigneeId: f.assigneeId ? Number(f.assigneeId) : null,
         dueDate: f.dueDate || null,
@@ -55,17 +54,11 @@ export function TaskForm({ projects, statuses, users, initialStatusId, onClose, 
   };
 
   return (
-    <Modal title="Yeni görev" onClose={onClose}>
+    <Modal title={initialAssigneeId ? `Görev aç: ${users.find((u) => u.id === initialAssigneeId)?.fullName ?? ''}` : 'Yeni görev'} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <label>Başlık<input autoFocus required maxLength={250} value={f.title} onChange={up('title')} /></label>
         <label>Açıklama<textarea rows={3} value={f.description} onChange={up('description')} /></label>
         <div className="row">
-          <label>Proje
-            <select value={f.projectId} onChange={up('projectId')}>
-              <option value="">—</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </label>
           <label>Durum
             <select value={f.statusId} onChange={up('statusId')}>
               {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}

@@ -49,6 +49,7 @@ export class FcmClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${signature}` }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`FCM erişim belirteci alınamadı (${res.status})`);
     const j = (await res.json()) as { access_token: string; expires_in: number };
@@ -80,6 +81,7 @@ export class FcmClient {
       method: 'POST',
       headers: { Authorization: `Bearer ${await this.accessToken()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
+      signal: AbortSignal.timeout(10_000), // asılı kalan istek bildirim teslimatını sonsuza dek bekletmesin
     });
     if (res.ok) return;
     const text = await res.text();

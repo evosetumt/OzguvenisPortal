@@ -1,12 +1,15 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Android/iOS paketi. Uygulama dist klasörünü cihaza gömer; API'ye VITE_API_URL ile (bkz. .env.mobile) tam adresten bağlanır.
+ * Android/iOS paketi. Uygulama dist klasörünü cihaza gömer; API'ye VITE_API_URL ile (bkz. .env.mobile) tam adresten bağlanır:
+ * https://evoflow.ozguvenis.com.tr (Cloudflare Tunnel, genel TLS sertifikası; iç kök sertifika gerekmez).
  * API tarafında CORS_ORIGIN'e mobil kökenler eklenmeli: https://localhost (Android), capacitor://localhost (iOS).
+ * appId mağaza kimliğidir (Play paket adı / iOS Bundle ID): yayından sonra DEĞİŞTİRİLEMEZ.
+ * Mağaza yayını: deploy/mobile/MAGAZA.md
  */
 const config: CapacitorConfig = {
   appId: 'tr.com.ozguvenis.portal',
-  appName: 'Özgüveniş',
+  appName: 'EvoFlow',
   webDir: 'dist',
   android: { allowMixedContent: false },
   server: {

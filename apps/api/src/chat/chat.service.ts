@@ -23,6 +23,24 @@ type MessageRow = {
 /** Silinen mesajın içeriği istemciye gönderilmez. */
 const present = (m: MessageRow) => (m.deletedAt ? { ...m, body: '', attachment: null } : m);
 
+/** Sohbet listesi/özeti için: üyeler (katılım sırasıyla) ve son mesaj. */
+const summaryInclude = {
+  members: { include: { user: userSel }, orderBy: { joinedAt: 'asc' } },
+  messages: { orderBy: { id: 'desc' }, take: 1, include: messageInclude },
+} satisfies Prisma.ConversationInclude;
+type SummaryRow = Prisma.ConversationGetPayload<{ include: typeof summaryInclude }>;
+
+/** summary() ve list() aynı biçimi döner (web istemcisi bu şekle bağlı). */
+function shapeSummary(conv: SummaryRow, unread: number) {
+  const { messages, members, ...rest } = conv;
+  return {
+    ...rest,
+    members: members.map((m) => ({ ...m.user, lastReadMessageId: m.lastReadMessageId })),
+    lastMessage: messages[0] ? present(messages[0]) : null,
+    unread,
+  };
+}
+
 const directKey = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`);
 const excerpt = (s: string) => (s.length > 120 ? s.slice(0, 117) + '…' : s);
 
@@ -71,35 +89,45 @@ export class ChatService implements OnModuleInit {
   }
 
   private async summary(u: AuthUser, conversationId: number) {
-    const conv = await this.prisma.conversation.findUniqueOrThrow({
-      where: { id: conversationId },
-      include: {
-        members: { include: { user: userSel }, orderBy: { joinedAt: 'asc' } },
-        messages: { orderBy: { id: 'desc' }, take: 1, include: messageInclude },
-      },
-    });
+    const conv = await this.prisma.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: summaryInclude });
     const me = conv.members.find((m) => m.userId === u.id);
     const unread = me
       ? await this.prisma.message.count({
         where: { conversationId, deletedAt: null, senderId: { not: u.id }, id: { gt: me.lastReadMessageId ?? 0 } },
       })
       : 0;
-    const { messages, members, ...rest } = conv;
-    return {
-      ...rest,
-      members: members.map((m) => ({ ...m.user, lastReadMessageId: m.lastReadMessageId })),
-      lastMessage: messages[0] ? present(messages[0]) : null,
-      unread,
-    };
+    return shapeSummary(conv, unread);
   }
 
+  /**
+   * Kullanıcının sohbet başına okunmamış mesaj sayısı tek sorguda (summary() ile aynı tanım:
+   * okundu imlecinden sonraki, silinmemiş, başkasının yazdığı mesajlar). Okunmamışı olmayan sohbet listede yer almaz.
+   */
+  private async unreadByConversation(userId: number) {
+    const rows = await this.prisma.$queryRaw<{ conversationId: number; unread: number | bigint }[]>`
+      SELECT cm.conversationId AS conversationId, COUNT(*) AS unread
+      FROM [ConversationMember] cm
+      JOIN [Message] m
+        ON m.conversationId = cm.conversationId
+       AND m.id > ISNULL(cm.lastReadMessageId, 0)
+       AND m.senderId <> cm.userId
+       AND m.deletedAt IS NULL
+      WHERE cm.userId = ${userId}
+      GROUP BY cm.conversationId`;
+    return new Map(rows.map((r) => [Number(r.conversationId), Number(r.unread)]));
+  }
+
+  /** Sohbet başına ayrı sorgu (N+1) yerine sabit sayıda sorgu: sohbetler + son mesajlar tek findMany, okunmamışlar tek sorgu. */
   async list(u: AuthUser) {
-    const convs = await this.prisma.conversation.findMany({
-      where: { members: { some: { userId: u.id } } },
-      select: { id: true },
-      orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-    });
-    return Promise.all(convs.map((c) => this.summary(u, c.id)));
+    const [convs, unread] = await Promise.all([
+      this.prisma.conversation.findMany({
+        where: { members: { some: { userId: u.id } } },
+        include: summaryInclude,
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+      this.unreadByConversation(u.id),
+    ]);
+    return convs.map((c) => shapeSummary(c, unread.get(c.id) ?? 0));
   }
 
   async get(u: AuthUser, id: number) {
@@ -108,13 +136,8 @@ export class ChatService implements OnModuleInit {
   }
 
   async unreadTotal(u: AuthUser) {
-    const members = await this.prisma.conversationMember.findMany({ where: { userId: u.id } });
     let total = 0;
-    for (const m of members) {
-      total += await this.prisma.message.count({
-        where: { conversationId: m.conversationId, deletedAt: null, senderId: { not: u.id }, id: { gt: m.lastReadMessageId ?? 0 } },
-      });
-    }
+    for (const n of (await this.unreadByConversation(u.id)).values()) total += n;
     return { unread: total };
   }
 
@@ -128,15 +151,27 @@ export class ChatService implements OnModuleInit {
     if (otherId === u.id) throw new BadRequestException('Kendinizle sohbet başlatamazsınız');
     await this.activeUsers([otherId]);
     const key = directKey(u.id, otherId);
-    const existing = await this.prisma.conversation.findFirst({ where: { type: 'direct', directKey: key } });
+    // Eski veride aynı çift için birden çok sohbet kalmış olabilir (benzersiz index o durumda kurulamaz):
+    // en eskisi seçilir ki iki taraf da hep aynı sohbete düşsün.
+    const find = () => this.prisma.conversation.findFirst({ where: { type: 'direct', directKey: key }, orderBy: { id: 'asc' }, select: { id: true } });
+    const existing = await find();
     if (existing) return this.summary(u, existing.id);
-    const conv = await this.prisma.conversation.create({
-      data: {
-        type: 'direct', directKey: key, createdById: u.id,
-        members: { create: [{ userId: u.id }, { userId: otherId }] },
-      },
-    });
-    return this.summary(u, conv.id);
+    try {
+      const conv = await this.prisma.conversation.create({
+        data: {
+          type: 'direct', directKey: key, createdById: u.id,
+          members: { create: [{ userId: u.id }, { userId: otherId }] },
+        },
+      });
+      return this.summary(u, conv.id);
+    } catch (e) {
+      // İki taraf aynı anda başlattı: benzersiz index ikinci kaydı reddeder, öncekinin oluşturduğu sohbet döner.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const winner = await find();
+        if (winner) return this.summary(u, winner.id);
+      }
+      throw e;
+    }
   }
 
   async createGroup(u: AuthUser, dto: GroupDto) {

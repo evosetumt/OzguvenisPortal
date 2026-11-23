@@ -26,7 +26,7 @@ export const EXPENSE_APPROVAL_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:serviceTask id="Task_RecordPay" name="Ödemeyi işle" portal:handler="expense.recordDecision" portal:args="payment"><bpmn:incoming>F_pay_rec</bpmn:incoming><bpmn:outgoing>F_end</bpmn:outgoing></bpmn:serviceTask>
     <bpmn:endEvent id="End_Paid" name="Ödendi"><bpmn:incoming>F_end</bpmn:incoming></bpmn:endEvent>
     <bpmn:sequenceFlow id="F_start" sourceRef="Start" targetRef="Gw_Limit" />
-    <bpmn:sequenceFlow id="F_limit_yes" name="Evet" sourceRef="Gw_Limit" targetRef="Task_Auto"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">\${amountTry &lt;= settings.expense.autoApproveLimit}</bpmn:conditionExpression></bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_limit_yes" name="Evet" sourceRef="Gw_Limit" targetRef="Task_Auto"><bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">\${currency == 'TRY' &amp;&amp; amountTry &lt;= settings.expense.autoApproveLimit}</bpmn:conditionExpression></bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="F_limit_no" name="Hayır" sourceRef="Gw_Limit" targetRef="Task_Manager" />
     <bpmn:sequenceFlow id="F_auto_acc" sourceRef="Task_Auto" targetRef="Task_Accounting" />
     <bpmn:sequenceFlow id="F_mgr_rec" sourceRef="Task_Manager" targetRef="Task_RecordMgr" />

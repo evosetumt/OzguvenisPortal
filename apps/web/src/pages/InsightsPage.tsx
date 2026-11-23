@@ -80,7 +80,6 @@ export function InsightsPage() {
       {r && (
         <div className="insights">
           <Throughput r={r} />
-          <ByProject r={r} />
           <NewWork r={r} />
           <Workload r={r} />
           <OnTime r={r} />
@@ -239,51 +238,6 @@ function Throughput({ r }: { r: TaskReport }) {
 
 const FALLBACK = ['var(--purple)', 'var(--blue)', 'var(--pink)', 'var(--green)', 'var(--teal)', 'var(--orange)'];
 
-function ByProject({ r }: { r: TaskReport }) {
-  const [dim, setDim] = useState<number | null>(null);
-  const items = r.byProject.slice(0, 6).map((p, i) => ({ ...p, color: p.project?.color ?? FALLBACK[i % FALLBACK.length] }));
-  const rest = r.byProject.slice(6).reduce((n, p) => n + p.completed, 0);
-  if (rest) items.push({ project: { id: -1, name: 'Diğer', color: 'var(--text-3)' }, completed: rest, share: Math.round((rest / r.current.completed) * 100), color: 'var(--text-3)' });
-  const total = r.current.completed;
-  const R = 62, C = 2 * Math.PI * R, gap = items.length > 1 ? 10 : 0;
-  let off = 0;
-
-  return (
-    <Card className="ins-proj" title="Proje bazında" sub="Biten işin nereye gittiği">
-      <div className="proj">
-        <svg className="donut" viewBox="0 0 160 160" role="img" aria-label={`${total} tamamlanan görevin projelere dağılımı`}>
-          <circle cx="80" cy="80" r={R} className="donut-track" />
-          {total > 0 && items.map((p, i) => {
-            const len = Math.max(0.5, (p.completed / total) * C - gap);
-            const el = (
-              <circle key={i} cx="80" cy="80" r={R} stroke={p.color} strokeDasharray={`${len} ${C}`} strokeDashoffset={-off}
-                className={'donut-seg' + (dim !== null && dim !== i ? ' dim' : '')} transform="rotate(-90 80 80)"
-                onMouseEnter={() => setDim(i)} onMouseLeave={() => setDim(null)} />
-            );
-            off += (p.completed / total) * C;
-            return el;
-          })}
-          <text x="80" y="80" textAnchor="middle" className="donut-num">{nf(total)}</text>
-          <text x="80" y="100" textAnchor="middle" className="donut-lab">tamamlandı</text>
-        </svg>
-        {items.length ? (
-          <table className="plegend">
-            <tbody>
-              {items.map((p, i) => (
-                <tr key={i} className={dim !== null && dim !== i ? 'dim' : ''} onMouseEnter={() => setDim(i)} onMouseLeave={() => setDim(null)}>
-                  <th><i style={{ background: p.color }} /><span>{p.project?.name ?? 'Projesiz'}</span></th>
-                  <td>{nf(p.completed)}</td>
-                  <td>%{p.share ?? 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <p className="empty">Bu dönemde tamamlanan görev yok.</p>}
-      </div>
-    </Card>
-  );
-}
-
 function NewWork({ r }: { r: TaskReport }) {
   const total = sum(r.daily.map((d) => d.created));
   const max = niceMax(Math.max(1, ...r.daily.map((d) => d.created)));
@@ -372,7 +326,6 @@ function OnTime({ r }: { r: TaskReport }) {
               <span className="slow-main">
                 <b>{t.title}</b>
                 <span>
-                  {t.project && <span className="ptag" style={{ ['--hue' as string]: t.project.color }}><i />{t.project.name}</span>}
                   {t.assignee && <small>{t.assignee}</small>}
                 </span>
               </span>

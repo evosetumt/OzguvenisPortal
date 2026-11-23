@@ -11,15 +11,19 @@ export function startOfTodayUtc(now = new Date()) {
 }
 
 /**
- * Kapsama göre görev filtresi. Yetkisiz kayıtlar sorguya hiç girmez.
- * own: atanan, oluşturan veya izleyen; department: ek olarak atananı/oluşturanı aynı departmanda olanlar.
+ * Görev görünürlüğü: kapsamı "all" olan (Yönetici, Admin rolleri) tüm görevleri görür/düzenler. Diğer herkes (department
+ * kapsamı dahil) yalnızca içinde olduğu görevleri görür: atanan, oluşturan veya izleyen. Department kapsamı yalnızca
+ * birimdeki kişilere görev atamayı açar (tasks.service → assertCanAssign). includeWatchers=false: düzenleme için.
  */
-export function taskScopeWhere(u: AuthUser, scope: Scope, includeWatchers = true): Prisma.TaskWhereInput {
-  if (scope === 'all') return {};
-  const or: Prisma.TaskWhereInput[] = [{ assigneeId: u.id }, { createdById: u.id }];
-  if (includeWatchers) or.push({ watchers: { some: { userId: u.id } } });
-  if (scope === 'department' && u.departmentId) {
-    or.push({ assignee: { departmentId: u.departmentId } }, { createdBy: { departmentId: u.departmentId } });
-  }
+export function taskScopeWhere(u: AuthUser, scope: Scope | null, includeWatchers = true): Prisma.TaskWhereInput {
+  return scope === 'all' ? {} : taskInvolvedWhere(u.id, includeWatchers);
+}
+
+/** Görev okuma kapsamına göre filtre (başka modüllerde görev listelerken). */
+export const taskReadWhere = (u: AuthUser) => taskScopeWhere(u, scopeOf(u, 'task.read'));
+
+export function taskInvolvedWhere(userId: number, includeWatchers = true): Prisma.TaskWhereInput {
+  const or: Prisma.TaskWhereInput[] = [{ assigneeId: userId }, { createdById: userId }];
+  if (includeWatchers) or.push({ watchers: { some: { userId } } });
   return { OR: or };
 }

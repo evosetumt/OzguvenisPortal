@@ -7,18 +7,17 @@ import { useAuth } from '../lib/auth';
 import { Link } from 'react-router-dom';
 import { dateKey, initials, timeAgo } from '../lib/format';
 import { CustomerPicker } from './CustomerPicker';
-import { PRIORITY_LABEL, TASK_TYPE_LABEL, type Project, type TaskDetail, type TaskStatus, type UserRef } from '../lib/types';
+import { PRIORITY_LABEL, TASK_TYPE_LABEL, type TaskDetail, type TaskStatus, type UserRef } from '../lib/types';
 
 interface Props {
   taskId: number;
-  projects: Project[];
   statuses: TaskStatus[];
   users: UserRef[];
   onClose(): void;
   onChanged(): void;
 }
 
-export function TaskDrawer({ taskId, projects, statuses, users, onClose, onChanged }: Props) {
+export function TaskDrawer({ taskId, statuses, users, onClose, onChanged }: Props) {
   const { me } = useAuth();
   const { data: t, setData, error, reload } = useApi<TaskDetail>(`/tasks/${taskId}`);
   const [title, setTitle] = useState('');
@@ -65,7 +64,7 @@ export function TaskDrawer({ taskId, projects, statuses, users, onClose, onChang
     <div className="overlay drawer-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <aside className="glass drawer" role="dialog" aria-modal="true" aria-label="Görev ayrıntısı">
         <header className="modal-head">
-          <small>#{taskId}{t?.project && <> · <span style={{ color: t.project.color }}>●</span> {t.project.name}</>}</small>
+          <small>#{taskId}</small>
           <div>
             {t?.canEdit && <button className="icon-btn" title="Sil" onClick={remove}><Trash2 size={16} /></button>}
             <button className="icon-btn" title="Kapat" onClick={onClose}><X size={18} /></button>
@@ -88,7 +87,6 @@ export function TaskDrawer({ taskId, projects, statuses, users, onClose, onChang
             {erp.relatedType === 'payment' && erp.relatedId && (
               <div className="td-callout">
                 <span><b>Ödeme görevi</b><small>Görev tamamlanınca ödeme "ödendi" olarak işaretlenir.</small></span>
-                <Link className="btn sm" to={`/payments?id=${erp.relatedId}`} onClick={onClose}>Ödemeyi aç</Link>
               </div>
             )}
 
@@ -101,11 +99,6 @@ export function TaskDrawer({ taskId, projects, statuses, users, onClose, onChang
               <dd><select disabled={ro} value={t.assigneeId ?? ''} onChange={(e) => patch({ assigneeId: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">Atanmamış</option>
                 {users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-              </select></dd>
-              <dt>Proje</dt>
-              <dd><select disabled={ro} value={t.projectId ?? ''} onChange={(e) => patch({ projectId: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">—</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select></dd>
               <dt>Öncelik</dt>
               <dd><select disabled={ro} value={t.priority} onChange={(e) => patch({ priority: e.target.value })}>
