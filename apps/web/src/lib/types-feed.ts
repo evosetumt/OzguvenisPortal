@@ -1,10 +1,12 @@
 export interface FeedUser { id: number; fullName: string; avatarUrl: string | null }
 
+export interface FeedFile { id: number; fileName: string; mime: string; size: number }
+
 export interface FeedComment { id: number; body: string; createdAt: string; user: FeedUser }
 
 export interface FeedActivity { id: number; title: string; done: boolean; assignee: string | null; dueDate: string | null }
 
-export type FeedKind = 'post' | 'task_created' | 'task_completed' | 'order_created' | 'order_status' | 'quote_created' | 'shipment';
+export type FeedKind = 'post' | 'social' | 'task_created' | 'task_completed' | 'order_created' | 'order_status' | 'quote_created' | 'shipment';
 
 export interface FeedItem {
   id: number;
@@ -23,6 +25,8 @@ export interface FeedItem {
   likers: string[];
   comments: FeedComment[];
   activities: FeedActivity[];
+  /** Paylaşımdaki fotoğraf ve dosyalar */
+  files?: FeedFile[];
   canDelete: boolean;
 }
 

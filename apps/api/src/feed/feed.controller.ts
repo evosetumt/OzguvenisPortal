@@ -16,8 +16,8 @@ export class FeedController {
   constructor(private readonly feed: FeedService) {}
 
   @Get()
-  list(@CurrentUser() u: AuthUser, @Query('before') before?: string, @Query('userId') userId?: string, @Query('customer') customer?: string) {
-    return this.feed.list(u, { before: optInt(before), userId: optInt(userId), customerCode: customer?.trim().slice(0, 35) || undefined });
+  list(@CurrentUser() u: AuthUser, @Query('before') before?: string, @Query('userId') userId?: string, @Query('customer') customer?: string, @Query('wall') wall?: string) {
+    return this.feed.list(u, { before: optInt(before), userId: optInt(userId), customerCode: customer?.trim().slice(0, 35) || undefined, wall: wall === '1' });
   }
 
   @Post()

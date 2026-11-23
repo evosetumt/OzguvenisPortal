@@ -12,6 +12,7 @@ import { safeAppPath } from '../lib/safe-path';
 import { toggleTaskDone } from '../lib/task-status';
 import { PRIORITY_LABEL, type CalendarItem, type Task, type TaskStatus, type TaskSummary } from '../lib/types';
 import { useUnreadMessages } from '../components/chat/useUnreadMessages';
+import { SocialWall } from '../components/feed/SocialWall';
 import '../styles/home.css';
 
 interface HomeData {
@@ -200,6 +201,8 @@ export function HomePage() {
 
         {canTasks && home && <RightNow home={home} />}
       </div>
+
+      <SocialWall />
     </>
   );
 }

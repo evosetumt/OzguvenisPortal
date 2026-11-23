@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,9 +6,14 @@ import { AuditService } from '../common/audit.service';
 import { uniqIds } from '../common/format';
 import { scopeOf, type Scope } from '../common/scope';
 import { TasksService } from '../tasks/tasks.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { FeedActivityDto, FeedCommentDto, FeedPostDto, POST_MAX } from './feed.dto';
 
 const userSel = { select: { id: true, fullName: true, avatarUrl: true } } as const;
+const fileSel = { select: { id: true, fileName: true, mime: true, size: true } } as const;
+/** Şirket panosu paylaşımı: kapsamdan bağımsız herkes görür. */
+export const WALL_KIND = 'social';
+const USER_KINDS = ['post', WALL_KIND];
 const PAGE_SIZE = 20;
 const COMMENTS_PER_POST = 50;
 /** Karttan açılan görevler Task.relatedType = 'feed_post' ile karta bağlanır. */
@@ -26,7 +31,7 @@ function relatedLink(type: string | null, id: string | null, label: string | nul
   }
 }
 
-export interface FeedListQuery { before?: number; userId?: number; customerCode?: string }
+export interface FeedListQuery { before?: number; userId?: number; customerCode?: string; wall?: boolean }
 
 /**
  * Haber akışı. Görünürlük feed.read kapsamına göre:
@@ -34,12 +39,20 @@ export interface FeedListQuery { before?: number; userId?: number; customerCode?
  *   department: kendi birimindeki kişilerin akışları · all (Yönetici, Admin): herkesin akışı.
  */
 @Injectable()
-export class FeedService {
+export class FeedService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
+    private readonly attachments: AttachmentsService,
   ) {}
+
+  onModuleInit() {
+    // Paylaşımdaki fotoğrafı/dosyayı paylaşımı görebilen herkes açabilir.
+    this.attachments.registerAccessCheck(async (u, attachmentId) =>
+      (await this.prisma.feedPostAttachment.count({ where: { attachmentId, post: this.visibleWhere(u) } })) > 0,
+    );
+  }
 
   scope(u: AuthUser): Scope {
     return scopeOf(u, 'feed.read') ?? 'own';
@@ -48,11 +61,9 @@ export class FeedService {
   private visibleWhere(u: AuthUser): Prisma.FeedPostWhereInput {
     const scope = this.scope(u);
     if (scope === 'all') return { deletedAt: null };
-    const mine: Prisma.FeedPostWhereInput = { audience: { some: { userId: u.id } } };
-    if (scope === 'department' && u.departmentId) {
-      return { deletedAt: null, OR: [mine, { audience: { some: { user: { departmentId: u.departmentId } } } }] };
-    }
-    return { deletedAt: null, ...mine };
+    const or: Prisma.FeedPostWhereInput[] = [{ kind: WALL_KIND }, { audience: { some: { userId: u.id } } }];
+    if (scope === 'department' && u.departmentId) or.push({ audience: { some: { user: { departmentId: u.departmentId } } } });
+    return { deletedAt: null, OR: or };
   }
 
   private async findVisible(u: AuthUser, id: number) {
@@ -68,6 +79,8 @@ export class FeedService {
     // Kişi filtresi yalnızca başkalarının akışını görebilenler için anlamlı; "own" kapsamda zaten kendisi.
     if (q.userId && scope !== 'own') and.push({ audience: { some: { userId: q.userId } } });
     if (q.customerCode) and.push({ customerCode: q.customerCode });
+    // Pano yalnız sosyal paylaşımları, iş akışı (ve tarihçe) sosyal paylaşımlar dışındakileri gösterir.
+    and.push(q.wall ? { kind: WALL_KIND } : { kind: { not: WALL_KIND } });
 
     const rows = await this.prisma.feedPost.findMany({
       where: { AND: and },
@@ -83,6 +96,7 @@ export class FeedService {
           select: { id: true, body: true, createdAt: true, user: userSel },
         },
         audience: { select: { user: userSel }, take: 5 },
+        files: { include: { attachment: fileSel }, orderBy: { sortOrder: 'asc' } },
       },
     });
     const page = rows.slice(0, PAGE_SIZE);
@@ -113,7 +127,8 @@ export class FeedService {
         likers: p.likes.map((l) => l.user.fullName),
         comments: p.comments,
         activities: activities.get(p.id) ?? [],
-        canDelete: p.kind === 'post' && (p.authorId === u.id || scope === 'all'),
+        files: p.files.map((f) => f.attachment),
+        canDelete: USER_KINDS.includes(p.kind) && (p.authorId === u.id || scope === 'all'),
       })),
     };
   }
@@ -135,10 +150,13 @@ export class FeedService {
   }
 
   async create(u: AuthUser, dto: FeedPostDto) {
+    const fileIds = await this.attachments.assertOwn(u.id, dto.attachmentIds ?? []);
+    if (!dto.body.trim() && !fileIds.length) throw new BadRequestException('Bir şey yazın veya fotoğraf ekleyin');
     const customer = await this.customer(dto.customerCode);
     const post = await this.prisma.feedPost.create({
       data: {
-        kind: 'post',
+        kind: dto.wall ? WALL_KIND : 'post',
+        files: { create: fileIds.map((attachmentId, sortOrder) => ({ attachmentId, sortOrder })) },
         authorId: u.id,
         body: dto.body.trim(),
         customerCode: customer?.code ?? null,
@@ -152,7 +170,7 @@ export class FeedService {
 
   async remove(u: AuthUser, id: number) {
     const post = await this.findVisible(u, id);
-    if (post.kind !== 'post' || (post.authorId !== u.id && this.scope(u) !== 'all')) throw new ForbiddenException('Bu kartı silemezsiniz');
+    if (!USER_KINDS.includes(post.kind) || (post.authorId !== u.id && this.scope(u) !== 'all')) throw new ForbiddenException('Bu kartı silemezsiniz');
     await Promise.all([
       this.prisma.feedPost.update({ where: { id }, data: { deletedAt: new Date() } }),
       this.audit.log(u.id, 'feed.delete', 'feed_post', id),

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Banknote, Building2, CheckCircle2, CheckSquare, FileText, MessageSquare, ThumbsUp, Trash2, Truck, X } from 'lucide-react';
 import { Avatar } from '../Avatar';
@@ -7,9 +7,11 @@ import { json } from '../../lib/data';
 import { useAuth } from '../../lib/auth';
 import { formatDue, formatTime } from '../../lib/format';
 import { safeAppPath } from '../../lib/safe-path';
-import type { FeedComment, FeedItem, FeedKind } from '../../lib/types-feed';
+import type { FeedComment, FeedFile, FeedItem, FeedKind } from '../../lib/types-feed';
+import { fileUrl, openFile } from '../../lib/files';
+import { Receipt } from '../workflow/Receipt';
 
-const KIND_ICON: Record<Exclude<FeedKind, 'post'>, typeof Banknote> = {
+const KIND_ICON: Record<Exclude<FeedKind, 'post' | 'social'>, typeof Banknote> = {
   task_created: CheckSquare, task_completed: CheckCircle2, order_created: Banknote, order_status: Banknote, quote_created: FileText, shipment: Truck,
 };
 
@@ -38,7 +40,7 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
   const person = item.author ?? item.owner;
   const isNew = Date.now() - new Date(item.createdAt).getTime() < 6 * 3600_000 && item.author?.id !== me!.id;
   const href = safeAppPath(item.link);
-  const SysIcon = item.kind === 'post' ? null : KIND_ICON[item.kind];
+  const SysIcon = item.kind === 'post' || item.kind === 'social' ? null : KIND_ICON[item.kind];
 
   const like = async () => {
     const liked = !item.likedByMe;
@@ -95,7 +97,8 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
         {item.canDelete && <button className="icon-btn sm fd-del" title="Kartı sil" onClick={() => void remove()} disabled={busy}><Trash2 size={15} /></button>}
       </header>
 
-      <p className="fd-body">{item.body}</p>
+      {item.body && <p className="fd-body">{item.body}</p>}
+      {(item.files?.length ?? 0) > 0 && <FeedPhotos files={item.files!} />}
 
       {item.activities.length > 0 && (
         <ul className="fd-acts">
@@ -115,7 +118,7 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
         <button onClick={() => setCommenting((v) => !v)}>
           <MessageSquare size={15} /> Yorum yaz{item.comments.length > 0 && <span className="fd-count">{item.comments.length}</span>}
         </button>
-        {can('task.write') && <button onClick={() => onAddActivity(item)}><CheckSquare size={15} /> Aktivite ekle</button>}
+        {can('task.write') && item.kind !== 'social' && <button onClick={() => onAddActivity(item)}><CheckSquare size={15} /> Aktivite ekle</button>}
       </footer>
 
       {(item.comments.length > 0 || commenting) && (
@@ -139,5 +142,39 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
       )}
       {err && <p className="error fd-err">{err}</p>}
     </article>
+  );
+}
+
+/** Paylaşımdaki fotoğraflar (ızgara) ve diğer dosyalar; dokununca uygulama içi görüntüleyicide açılır. */
+function FeedPhotos({ files }: { files: FeedFile[] }) {
+  const images = files.filter((f) => f.mime.startsWith('image/') && f.mime !== 'image/heic');
+  const docs = files.filter((f) => !images.includes(f));
+  return (
+    <div className="fd-files">
+      {images.length > 0 && (
+        <div className={'fd-photos n' + Math.min(images.length, 4)}>
+          {images.slice(0, 4).map((f, i) => (
+            <FeedImage key={f.id} file={f} more={i === 3 && images.length > 4 ? images.length - 4 : 0} />
+          ))}
+        </div>
+      )}
+      {docs.length > 0 && <div className="receipts">{docs.map((f) => <Receipt key={f.id} file={f} />)}</div>}
+    </div>
+  );
+}
+
+function FeedImage({ file, more }: { file: FeedFile; more: number }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let url: string | null = null;
+    let alive = true;
+    fileUrl(file.id).then((u) => { url = u; if (alive) setSrc(u); else URL.revokeObjectURL(u); }).catch(() => undefined);
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+  }, [file.id]);
+  return (
+    <button type="button" className="fd-photo" onClick={() => void openFile(file.id, file.fileName)} aria-label={file.fileName}>
+      {src ? <img src={src} alt={file.fileName} loading="lazy" /> : <span className="fd-photo__ph" />}
+      {more > 0 && <b className="fd-photo__more">+{more}</b>}
+    </button>
   );
 }
