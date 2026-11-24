@@ -58,10 +58,10 @@
   grid-template-areas:
     'today today today today next next next next attn attn attn attn'
     'tasks tasks tasks tasks tasks tasks week week week week week week'
-    'proj proj proj proj proj proj proj now now now now now';
+    'now now now now now now now now now now now now';
 }
 .hm-today { grid-area: today; } .hm-next { grid-area: next; } .hm-attn { grid-area: attn; }
-.hm-tasks { grid-area: tasks; } .hm-week { grid-area: week; } .hm-projects { grid-area: proj; } .hm-now { grid-area: now; }
+.hm-tasks { grid-area: tasks; } .hm-week { grid-area: week; } .hm-now { grid-area: now; }
 .hm-card { display: flex; flex-direction: column; min-width: 0; padding: clamp(16px, 0.6vw + 12px, 22px); border-radius: var(--r-xl); }
 .hm-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
 .hm-card__head .link-btn { font-size: 14px; font-weight: 600; color: var(--accent-ink); }
@@ -182,7 +182,7 @@
 
 @media (max-width: 1180px) {
   .hm-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'lead' 'stats' 'actions'; }
-  .home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'today next' 'attn attn' 'tasks tasks' 'week week' 'proj proj' 'now now'; }
+  .home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'today next' 'attn attn' 'tasks tasks' 'week week' 'now now'; }
 }
 @media (max-width: 720px) {
   .hm-hero { gap: 14px; padding: 18px 16px; margin-inline: -2px; }
@@ -196,7 +196,7 @@
   .hm-quick { margin-inline: -14px; padding-inline: 12px; }
   .hm-quick a { width: 76px; }
   .hm-quick__ico { width: 58px; height: 58px; border-radius: 18px; }
-  .home { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'next' 'attn' 'tasks' 'week' 'proj' 'now'; }
+  .home { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'next' 'attn' 'tasks' 'week' 'now'; }
   .proj-rows a { grid-template-columns: 36px minmax(0, 1fr) 40px; grid-template-areas: 'ico name pct' 'ico bar bar'; row-gap: 6px; }
   .proj-ico { grid-area: ico; width: 36px; height: 36px; } .proj-name { grid-area: name; } .proj-bar { grid-area: bar; } .proj-pct { grid-area: pct; }
   .proj-rows .av-stack { display: none; }

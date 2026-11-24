@@ -81,7 +81,7 @@ function AnnouncementForm({ item, onClose, onSaved }: { item: Announcement | nul
   const [title, setTitle] = useState(item?.title ?? '');
   const [body, setBody] = useState(item?.body ?? '');
   const [important, setImportant] = useState(item?.important ?? false);
-  const [allDepartments, setAll] = useState(item?.allDepartments ?? false);
+  const [allDepartments, setAll] = useState(item?.allDepartments ?? true); // yeni duyuru varsayılan olarak tüm şirkete
   const [selected, setSelected] = useState<Set<number>>(new Set(item?.departments.map((d) => d.id) ?? []));
   const [startsAt, setStartsAt] = useState(toLocalInput(item?.startsAt ?? null));
   const [endsAt, setEndsAt] = useState(toLocalInput(item?.endsAt ?? null));

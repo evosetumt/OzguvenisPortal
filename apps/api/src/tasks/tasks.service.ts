@@ -317,6 +317,7 @@ export class TasksService implements OnModuleInit {
     await this.findVisible(u, id, this.writeScope(u), false);
     await this.prisma.task.update({ where: { id }, data: { deletedAt: new Date() } });
     await this.audit.log(u.id, 'task.delete', 'task', id);
+    this.events.emit('task.deleted', u.id, { taskId: id });
   }
 
   // ---------- Alt görevler ----------

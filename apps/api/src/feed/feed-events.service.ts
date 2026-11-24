@@ -43,6 +43,8 @@ export class FeedEventsService implements OnModuleInit {
     // Sistemin açtığı görevler (actorId boş: onay akışı, ödeme) "yeni görev" kartı üretmez.
     this.events.on('task.created', (e) => (e.actorId ? this.taskCard(e, 'task_created') : undefined));
     this.events.on('task.completed', (e) => this.taskCard(e, 'task_completed'));
+    // Silinen görevin "açıldı / tamamlandı" kartları akışta (tarihçede) sahipsiz kalmasın.
+    this.events.on('task.deleted', (e) => (Number(e.payload.taskId) ? this.feed.hideRelated('task', Number(e.payload.taskId)) : undefined));
     for (const [code, kind, relatedType, body] of ERP_CARDS) {
       this.events.on(code, (e) => this.erp(e, kind, relatedType, body(e.payload)));
     }
