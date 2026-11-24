@@ -219,7 +219,10 @@ export function TasksPage() {
       {showCreate && statuses && (
         <TaskForm statuses={statuses} users={users ?? []} initialStatusId={createIn || undefined}
           onClose={() => { setCreateIn(null); setParam('new', null); }}
-          onCreated={(t) => { setCreateIn(null); refresh(); const p = new URLSearchParams(params); p.delete('new'); p.set('id', String(t.id)); setParams(p, { replace: true }); }} />
+          onCreated={() => {
+            // Görevi oluşturan kişide detay ekranı açılmaz; görev listede görünür, istenirse oradan açılır.
+            setCreateIn(null); refresh(); setParam('new', null);
+          }} />
       )}
       {openId && statuses && (
         <TaskDrawer key={openId} taskId={openId} statuses={statuses} users={users ?? []}
