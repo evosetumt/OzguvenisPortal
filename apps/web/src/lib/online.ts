@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api } from './api';
 import { connectRealtime } from './realtime';
@@ -64,6 +64,29 @@ export function useOnlineCount(userIds: number[]): number {
     (cb) => { ensure(); listeners.add(cb); return () => { listeners.delete(cb); }; },
     () => userIds.filter((id) => states.get(id)?.online).length,
   );
+}
+
+/** Verilen kişilerden çevrimiçi olanların kimlikleri; yalnız küme gerçekten değişince yeni nesne döner. */
+export function useOnlineIds(userIds: number[]): Set<number> {
+  const key = useSyncExternalStore(
+    (cb) => { ensure(); listeners.add(cb); return () => { listeners.delete(cb); }; },
+    () => userIds.filter((id) => states.get(id)?.online).join(','),
+  );
+  return useMemo(() => new Set(key ? key.split(',').map(Number) : []), [key]);
+}
+
+/**
+ * Avatar noktası: kullanıcı bağlıyken seçtiği duruma göre renklenir (Çevrimiçi yeşil, Odakta mor, Toplantıda turuncu,
+ * Uzakta gri); bağlı değilse nokta yoktur. Dönen değer people.ts PRESENCE anahtarıdır.
+ */
+export function presenceDot(state: OnlineState | undefined, chosen: string | undefined): string | undefined {
+  if (!state?.online) return undefined;
+  return chosen || 'online';
+}
+
+/** Çevrimiçi olanları başa alır; her grubun kendi içindeki sırası korunur, girdi değişmez. */
+export function onlineFirst<T extends { id: number }>(list: readonly T[], onlineIds: ReadonlySet<number>): T[] {
+  return [...list.filter((x) => onlineIds.has(x.id)), ...list.filter((x) => !onlineIds.has(x.id))];
 }
 
 const TIME = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' });

@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, CheckCheck, FileText, Info, Paperclip, Pencil, Phone, Send, Trash2, Video, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { json } from '../../lib/data';
-import { formatTime, initials } from '../../lib/format';
+import { formatTime } from '../../lib/format';
+import { ChatAvatar, usePresence } from './ChatAvatar';
 import { fileUrl, formatSize, openFile, uploadFile, type UploadedFile } from '../../lib/files';
 import { emitTyping, useReconnect, useSocketEvent } from '../../lib/realtime';
 import { conversationTitle, type ChatAttachment, type ChatMessage, type Conversation } from '../../lib/types-chat';
 import { useCalls } from '../../lib/calls';
 import { QuickTaskButton } from '../QuickTaskButton';
 import type { CallKind } from '../../lib/types-call';
-import { lastSeenLabel, useOnline, useOnlineCount } from '../../lib/online';
+import { lastSeenLabel, useOnlineCount } from '../../lib/online';
 
 const PAGE = 40;
 
@@ -137,20 +138,21 @@ export function MessageThread({ conversation: c, meId, onBack, onInfo }: {
   // Okundu bilgisi: her üyenin okundu imleci (lastReadMessageId) o mesaja ulaştıysa okumuştur.
   const others = c.members.filter((m) => m.id !== meId);
   const readCount = (id: number) => others.filter((o) => (o.lastReadMessageId ?? 0) >= id).length;
-  const otherState = useOnline(other?.id);
+  const presence = usePresence(other?.id);
   const onlineCount = useOnlineCount(others.map((o) => o.id));
+  // Bağlıysa seçtiği durum (Çevrimiçi / Odakta / Toplantıda / Uzakta), değilse son görülme.
   const status = typingNames.length ? `${typingNames.join(', ')} yazıyor…`
     : c.type === 'group' ? `${c.members.length} üye${onlineCount ? ` · ${onlineCount} çevrimiçi` : ''}`
-      : lastSeenLabel(otherState) || 'Birebir sohbet';
+      : presence.dot ? presence.label : lastSeenLabel(presence.state) || 'Birebir sohbet';
 
   return (
     <section className="glass chat-thread">
       <header className="chat-head">
         <button className="icon-btn chat-back" title="Geri" onClick={onBack}><ArrowLeft size={18} /></button>
-        <div className={'avatar' + (otherState?.online ? ' is-online' : '')}>{c.type === 'group' ? '#' : initials(conversationTitle(c, meId))}</div>
+        <ChatAvatar conversation={c} meId={meId} />
         <div className="who">
           <b>{conversationTitle(c, meId)}</b>
-          <small className={otherState?.online && !typingNames.length ? 'is-online' : ''}>{status}</small>
+          <small className={presence.dot && !typingNames.length ? 'is-online pr-' + presence.cls : ''}>{status}</small>
         </div>
         <div className="chat-call">
           <button className="btn sm" title="Sesli ara" disabled={!!calls.active} onClick={() => startCall('audio')}><Phone size={16} /><span>Sesli</span></button>

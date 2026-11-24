@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
+import { connectRealtime } from './realtime';
 
 /** Kişi rehberi önbelleği: profil fotoğrafı ve durum her yerde kimlikten bulunur (tek istek, tüm bileşenler paylaşır). */
 export interface Person { id: number; fullName: string; avatarUrl: string | null; departmentId: number | null; title: string | null; presence: string }
@@ -25,12 +26,30 @@ export function patchPerson(id: number, change: Partial<Person>) {
   notify();
 }
 
+/**
+ * Başkası durumunu (Odakta, Toplantıda…), fotoğrafını veya adını değiştirince sunucu "users" konusunu yayınlar;
+ * rehber kısa bir gecikmeyle yeniden çekilir (art arda gelen yazmalar tek isteğe iner).
+ */
+const REFRESH_DELAY_MS = 800;
+let live = false;
+function listenForChanges() {
+  if (live) return;
+  live = true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  connectRealtime().on('data:changed', (e: { topics?: string[] }) => {
+    if (!e.topics?.includes('users')) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => void loadPeople(true), REFRESH_DELAY_MS);
+  });
+}
+
 export function usePeople() {
   const [, setV] = useState(0);
   useEffect(() => {
     const f = () => setV((v) => v + 1);
     subs.add(f);
     void loadPeople();
+    listenForChanges();
     return () => { subs.delete(f); };
   }, []);
   return people;

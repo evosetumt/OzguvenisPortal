@@ -172,9 +172,12 @@ export function Shell({ children }: { children: ReactNode }) {
               {side.mobile ? <Menu size={21} /> : <PanelLeftOpen size={21} />}
             </button>
           )}
-          <form className="search" onSubmit={search} role="search">
-            <Search size={19} /><input placeholder="Görevlerde ara…" aria-label="Görevlerde ara" value={q} onChange={(e) => setQ(e.target.value)} />
-          </form>
+          {/* Görev araması yalnız Görevler sekmesinde; diğer sayfalarda kafa karıştırmasın. */}
+          {loc.pathname.startsWith('/tasks') && (
+            <form className="search" onSubmit={search} role="search">
+              <Search size={19} /><input placeholder="Görevlerde ara…" aria-label="Görevlerde ara" value={q} onChange={(e) => setQ(e.target.value)} />
+            </form>
+          )}
           <div className="topbar-end">
             {canAdd && <button className="icon-btn add-btn" title="Hızlı görev ekle" onClick={() => nav('/tasks?new=1')}><Plus size={21} /></button>}
             <button className="icon-btn theme-btn" title={theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç'} onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>

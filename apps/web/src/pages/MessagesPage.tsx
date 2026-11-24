@@ -1,31 +1,55 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, Users } from 'lucide-react';
+import { MessageCirclePlus, Paperclip, Plus, Search, Users } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { json, useApi } from '../lib/data';
-import { initials, timeAgo } from '../lib/format';
+import { timeAgo } from '../lib/format';
 import { useReconnect, useSocketEvent } from '../lib/realtime';
 import { conversationTitle, type ChatMessage, type Conversation } from '../lib/types-chat';
 import { MessageThread } from '../components/chat/MessageThread';
 import { NewConversationModal } from '../components/chat/NewConversationModal';
 import { GroupInfoModal } from '../components/chat/GroupInfoModal';
-import { useOnline } from '../lib/online';
+import { lastSeenLabel, onlineFirst, useOnlineIds } from '../lib/online';
+import { sortedPeople, usePeople, type Person } from '../lib/people';
+import { ChatAvatar, PersonAvatar, directPeer, usePresence } from '../components/chat/ChatAvatar';
 import '../styles/chat.css';
 
-/** Sohbet listesindeki avatar: birebir sohbette karşı taraf çevrimiçiyse yeşil nokta. */
-function ConvAvatar({ c, meId }: { c: Conversation; meId: number }) {
-  const other = c.type === 'direct' ? c.members.find((m) => m.id !== meId) : undefined;
-  const state = useOnline(other?.id);
-  return <span className={'avatar' + (state?.online ? ' is-online' : '')}>{c.type === 'group' ? '#' : initials(conversationTitle(c, meId))}</span>;
+/** Durum etiketi yalnız bağlıyken: seçtiği durumun adı ve rengi (bağlı değilken noktasız avatar yeterli, isme yer kalsın). */
+function PresenceTag({ userId }: { userId: number }) {
+  const { state, dot, label, cls } = usePresence(userId);
+  if (!dot) return null;
+  return <i className={'conv-status ' + cls} title={lastSeenLabel(state)}>{label}</i>;
 }
 
-const preview = (m: ChatMessage | null, meId: number) => {
-  if (!m) return 'Henüz mesaj yok';
-  if (m.deletedAt) return 'Mesaj silindi';
-  const text = m.body || (m.attachment ? '📎 ' + m.attachment.fileName : '');
-  return (m.senderId === meId ? 'Siz: ' : '') + text;
-};
+/** Henüz birebir sohbeti olmayan kişi: dokununca sohbet doğrudan başlar. */
+function PersonRow({ person, onStart }: { person: Person; onStart(id: number): void }) {
+  const { state, dot } = usePresence(person.id);
+  return (
+    <li>
+      <button className="conv person" onClick={() => onStart(person.id)} title={`${person.fullName} ile sohbet başlat`}>
+        <PersonAvatar id={person.id} name={person.fullName} src={person.avatarUrl} size="lg" />
+        <span className="conv-body">
+          <span className="conv-top"><b>{person.fullName}</b><PresenceTag userId={person.id} /></span>
+          <span className="conv-bottom"><small>{dot ? (person.title || 'Mesaj göndermek için dokun') : (lastSeenLabel(state) || person.title || 'Sohbet başlat')}</small></span>
+        </span>
+        <span className="person-go"><MessageCirclePlus size={18} /></span>
+      </button>
+    </li>
+  );
+}
+
+/** Son mesaj önizlemesi: dosya / arama simgeli, kendi mesajında "Siz:". */
+function Preview({ m, meId }: { m: ChatMessage | null; meId: number }) {
+  if (!m) return <small className="conv-preview muted">Henüz mesaj yok, ilk mesajı yaz</small>;
+  if (m.deletedAt) return <small className="conv-preview muted"><i>Mesaj silindi</i></small>;
+  return (
+    <small className="conv-preview">
+      {m.senderId === meId && <span className="conv-me">Siz:</span>}
+      {m.attachment && !m.body ? <><Paperclip size={13} /> {m.attachment.fileName}</> : m.body}
+    </small>
+  );
+}
 
 export function MessagesPage() {
   const { me } = useAuth();
@@ -85,11 +109,21 @@ export function MessagesPage() {
   const norm = (s: string) => s.toLocaleLowerCase('tr-TR');
   const list = (convs ?? []).filter((c) => !q.trim() || norm(conversationTitle(c, meId)).includes(norm(q.trim())));
 
+  // Birebir sohbeti olmayan kişiler (çevrimiçi olanlar üstte); arama kutusu bunları da süzer.
+  const people = usePeople();
+  const withChat = new Set((convs ?? []).map((c) => directPeer(c, meId)?.id).filter((id): id is number => !!id));
+  const others = sortedPeople(people).filter((p) => p.id !== meId && !withChat.has(p.id) && (!q.trim() || norm(p.fullName).includes(norm(q.trim()))));
+  const onlineIds = useOnlineIds(others.map((p) => p.id));
+  const contacts = onlineFirst(others, onlineIds);
+  // ?to= mevcut akışı kullanır: birebir sohbeti açar (yoksa oluşturur) ve seçer.
+  const startWith = (userId: number) => setParams({ to: String(userId) });
+  const totalUnread = (convs ?? []).reduce((n, c) => n + c.unread, 0);
+
   return (
     <div className={'chat' + (active ? ' has-active' : '')}>
       <section className="glass chat-list">
         <header className="chat-list-head">
-          <h2>Mesajlar</h2>
+          <h2>Mesajlar{totalUnread > 0 && <span className="chat-unread-pill">{totalUnread}</span>}</h2>
           <button className="icon-btn" title="Yeni grup" onClick={() => setCreating('group')}><Users size={18} /></button>
           <button className="icon-btn" title="Yeni sohbet" onClick={() => setCreating('direct')}><Plus size={18} /></button>
         </header>
@@ -98,17 +132,31 @@ export function MessagesPage() {
         {directError && <p className="error" role="alert">{directError}</p>}
         {convs && convs.length === 0 && <p className="empty">Henüz sohbet yok. <button className="link-btn" onClick={() => setCreating('direct')}>Yeni sohbet başlatın</button> veya <button className="link-btn" onClick={() => setCreating('group')}>grup kurun</button></p>}
         <ul className="conv-list">
-          {list.map((c) => (
-            <li key={c.id}>
-              <button className={'conv' + (c.id === activeId ? ' active' : '') + (c.unread ? ' unread' : '')} onClick={() => select(c.id)}>
-                <ConvAvatar c={c} meId={meId} />
-                <span className="conv-body">
-                  <span className="conv-top"><b>{conversationTitle(c, meId)}</b>{c.lastMessageAt && <small>{timeAgo(c.lastMessageAt)}</small>}</span>
-                  <span className="conv-bottom"><small>{preview(c.lastMessage, meId)}</small>{c.unread > 0 && <span className="nav-count">{c.unread}</span>}</span>
-                </span>
-              </button>
-            </li>
-          ))}
+          {list.length > 0 && contacts.length > 0 && <li className="conv-section" aria-hidden="true">Sohbetler</li>}
+          {list.map((c) => {
+            const peer = directPeer(c, meId);
+            return (
+              <li key={c.id}>
+                <button className={'conv' + (c.id === activeId ? ' active' : '') + (c.unread ? ' unread' : '') + (c.type === 'group' ? ' is-group' : '')} onClick={() => select(c.id)}>
+                  <ChatAvatar conversation={c} meId={meId} size="lg" />
+                  <span className="conv-body">
+                    <span className="conv-top">
+                      <b>{conversationTitle(c, meId)}</b>
+                      {peer ? <PresenceTag userId={peer.id} /> : <i className="conv-status">{c.members.length} üye</i>}
+                      {c.lastMessageAt && <small className="conv-time">{timeAgo(c.lastMessageAt)}</small>}
+                    </span>
+                    <span className="conv-bottom"><Preview m={c.lastMessage} meId={meId} />{c.unread > 0 && <span className="conv-badge">{c.unread > 99 ? '99+' : c.unread}</span>}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+          {contacts.length > 0 && (
+            <>
+              <li className="conv-section" aria-hidden="true">Kişiler · {onlineIds.size} çevrimiçi</li>
+              {contacts.map((p) => <PersonRow key={p.id} person={p} onStart={startWith} />)}
+            </>
+          )}
         </ul>
       </section>
 

@@ -1,10 +1,14 @@
 /* Faz 5: mesajlaşma ve toplantı */
-.chat { display: grid; grid-template-columns: 320px 1fr; gap: 14px; height: calc(100vh - 110px); min-height: 420px; }
+.chat { display: grid; grid-template-columns: 350px 1fr; gap: 14px; height: calc(100vh - 110px); min-height: 420px; }
 /* Geniş ekranda sağ üstteki sabit araç çubuğu (60px + 14px) sohbet başlığını ve arama düğmelerini örtmesin. */
 @media (min-width: 1181px) { .chat { margin-top: 74px; height: calc(100vh - 184px); } }
 .chat-list, .chat-thread { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .chat-list { padding: 14px 10px; }
-.chat-list-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 10px; }
+.chat-list-head { display: flex; align-items: center; gap: 6px; padding: 0 6px 10px; }
+/* Başlık solda, "Yeni grup" ve "Yeni sohbet" sağda yan yana */
+.chat-list-head h2 { margin-right: auto; }
+.chat-list-head .icon-btn { width: 36px; height: 36px; border-radius: 12px; background: var(--fill); color: var(--text); }
+.chat-list-head .icon-btn:hover { background: var(--accent); color: var(--on-accent, #1a1712); }
 .chat-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; margin: 0 4px 8px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); color: var(--muted); }
 .chat-search input { flex: 1; border: 0; background: none; outline: 0; min-width: 0; }
 .conv-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
@@ -169,3 +173,50 @@ button.person:hover { background: var(--glass); }
 .msg-receipt { display: inline-flex; vertical-align: -2px; margin-left: 3px; color: var(--muted); }
 .msg-receipt.read { color: #34b7f1; }
 .msg-readby { font-variant-numeric: tabular-nums; }
+
+/* Sohbet listesi: zengin kartlar, durum etiketi ve "Kişiler" (sohbeti olmayanlarla doğrudan başlat) */
+.chat-list-head h2 { display: flex; align-items: center; gap: 8px; margin: 0 auto 0 0; }
+.chat-unread-pill { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--accent); color: var(--on-accent, #1a1712); font: 700 12px/1 var(--font); }
+.conv-list { display: flex; flex-direction: column; gap: 6px; padding: 2px 4px 8px; }
+.conv {
+  position: relative; gap: 12px; padding: 11px 12px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  transition: transform 0.15s var(--ease), box-shadow 0.15s, border-color 0.15s, background 0.15s;
+}
+.conv:hover { background: var(--surface); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); transform: translateY(-1px); }
+.conv.active { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); }
+.conv.unread::before { content: ''; position: absolute; left: -1px; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.conv.unread .conv-top b { font-weight: 800; }
+.conv .avatar.lg { width: 48px; height: 48px; font-size: 17px; flex: none; }
+.conv .avatar.lg .av-presence { width: 14px; height: 14px; }
+.conv-top b { flex: 0 1 auto; min-width: 0; font-size: 14.5px; }
+.conv-time { margin-left: auto; flex: none; font-size: 11.5px; color: var(--text-2); }
+.conv.unread .conv-time { color: var(--accent-ink); font-weight: 700; }
+.conv-preview { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: 13px; }
+.conv-preview svg { flex: none; }
+.conv-preview.muted { opacity: 0.75; }
+.conv-me { flex: none; color: var(--text-3, var(--text-2)); font-weight: 600; }
+.conv.unread .conv-preview { color: var(--text); font-weight: 600; }
+.conv-badge { flex: none; margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--accent); color: var(--on-accent, #1a1712); font: 700 11.5px/1 var(--font); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* Durum etiketi: seçilen durum renginde küçük hap */
+.conv-status { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font: 600 10.5px/1.3 var(--font); font-style: normal; background: var(--fill); color: var(--text-2); }
+.conv-status.ok, .conv-status.focus, .conv-status.warn { color: #fff; }
+.conv-status.ok { background: #2fb86a; } .conv-status.focus { background: #7b6cf0; } .conv-status.warn { background: #f29a0a; }
+.conv-status.off { background: var(--fill); color: var(--text-2); }
+.chat-head .who small.pr-focus { color: #7b6cf0; } .chat-head .who small.pr-warn { color: #d98200; } .chat-head .who small.pr-off { color: var(--text-2); }
+
+/* Grup avatarı */
+.chat-group-av {
+  position: relative; flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 14px; color: #fff;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+}
+.chat-group-av.lg { width: 48px; height: 48px; border-radius: 16px; }
+.chat-group-av b { position: absolute; right: -4px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; display: grid; place-items: center; background: var(--surface); color: var(--text); font: 700 10px/1 var(--font); box-shadow: 0 0 0 2px var(--surface), 0 1px 3px rgba(0, 0, 0, 0.2); }
+
+.conv-section { padding: 12px 8px 2px; font: 700 11.5px/1 var(--font); letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-2); }
+.conv.person { background: transparent; border-style: dashed; }
+.conv.person:hover { background: var(--surface); border-style: solid; }
+.person-go { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--fill); color: var(--text-2); transition: background 0.15s, color 0.15s; }
+.conv.person:hover .person-go, .conv.person:focus-visible .person-go { background: var(--accent); color: var(--on-accent, #1a1712); }
+@media (prefers-reduced-motion: reduce) { .conv { transition: none; } .conv:hover { transform: none; } }
