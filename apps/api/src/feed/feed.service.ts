@@ -79,8 +79,8 @@ export class FeedService implements OnModuleInit {
     // Kişi filtresi yalnızca başkalarının akışını görebilenler için anlamlı; "own" kapsamda zaten kendisi.
     if (q.userId && scope !== 'own') and.push({ audience: { some: { userId: q.userId } } });
     if (q.customerCode) and.push({ customerCode: q.customerCode });
-    // Pano yalnız sosyal paylaşımları, iş akışı (ve tarihçe) sosyal paylaşımlar dışındakileri gösterir.
-    and.push(q.wall ? { kind: WALL_KIND } : { kind: { not: WALL_KIND } });
+    // wall=1 yalnız eski pano (sosyal) paylaşımlarını döner; iş akışı hepsini gösterir (pano ana sayfadan kaldırıldı).
+    if (q.wall) and.push({ kind: WALL_KIND });
 
     const rows = await this.prisma.feedPost.findMany({
       where: { AND: and },
@@ -216,6 +216,14 @@ export class FeedService implements OnModuleInit {
   /** Aynı kayıt için aynı türde (silinmemiş) kart var mı? */
   async hasCard(kind: string, relatedType: string, relatedId: number | string) {
     return (await this.prisma.feedPost.count({ where: { kind, relatedType, relatedId: String(relatedId), deletedAt: null } })) > 0;
+  }
+
+  /** Silinen kayda ait sistem kartlarını (ör. "Yeni görev açıldı") akıştan kaldırır; kullanıcı paylaşımlarına dokunmaz. */
+  async hideRelated(relatedType: string, relatedId: number | string) {
+    await this.prisma.feedPost.updateMany({
+      where: { relatedType, relatedId: String(relatedId), kind: { notIn: USER_KINDS }, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
   }
 
   /** Kartı günceller (canlı yenileme "feed" konusunu tetikler); karta bağlı aktivite değişince kullanılır. */
