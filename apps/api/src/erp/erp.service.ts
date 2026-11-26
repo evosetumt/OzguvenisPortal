@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/auth.guard';
@@ -10,6 +10,7 @@ import { NetsisClient } from './netsis.client';
 import { EDocumentService, invoiceDirection } from './edocument.service';
 import { AuditService } from '../common/audit.service';
 import { Q_PING } from './netsis.queries';
+import { AccountNums, AccountSort, SortDir, periodNums, sortAccounts, statementInRange, sumAccounts } from './account-period';
 
 /** Prisma Decimal alanlarını JSON için sayıya çevirir (iç içe nesne/dizi dahil). */
 export function plain<T>(x: T): any {
@@ -24,6 +25,25 @@ export function plain<T>(x: T): any {
 const utcDay = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 
 export interface ListFilter { q?: string; status?: string; kind?: string; from?: Date; to?: Date; customerCode?: string }
+
+export interface CustomerListOpts {
+  q?: string;
+  onlyDebtors: boolean;
+  /** CARI_TIP (A alıcı, S satıcı …) */
+  type?: string;
+  /** Dahil */
+  from?: Date;
+  /** Hariç (bitiş gününün ertesi) */
+  to?: Date;
+  sort: AccountSort;
+  dir: SortDir;
+  showExcluded: boolean;
+}
+
+/** Cari listesinde dönen en fazla satır. */
+const LIST_LIMIT = 300;
+/** Kullanıcı başına hariç tutulabilecek en fazla cari. */
+const MAX_EXCLUSIONS = 1000;
 
 @Injectable()
 export class ErpService implements OnModuleInit {
@@ -92,17 +112,89 @@ export class ErpService implements OnModuleInit {
     return rows.map((r) => r.code);
   }
 
-  async customers(u: AuthUser, q?: string, onlyDebtors = false) {
-    const where: Prisma.ErpCustomerWhereInput = {
+  /** Önbellekteki hareket penceresinin başı (bu tarihten eski dönem rakamları eksik kalır). */
+  private windowStart() {
+    const d = new Date(Date.now() - this.sync.windowDays * 86_400_000);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  /** Kullanıcının hariç tuttuğu cari kodları. */
+  private async excludedCodes(userId: number) {
+    const rows = await this.prisma.erpAccountExclusion.findMany({ where: { userId }, select: { customerCode: true } });
+    return rows.map((r) => r.customerCode);
+  }
+
+  /**
+   * Cari listesi. Tarih aralığı yoksa borç/alacak/bakiye tüm zamanlardır ve sıralama veritabanında yapılır;
+   * aralık varsa rakamlar hareketlerden hesaplanır (bkz. account-period.ts) ve sıralama bellekte yapılır.
+   * Hariç tutulanlar toplamlara hiç girmez; showExcluded ile listede (işaretli) görünür.
+   */
+  async customers(u: AuthUser, o: CustomerListOpts) {
+    const excluded = await this.excludedCodes(u.id);
+    const exSet = new Set(excluded);
+    const base: Prisma.ErpCustomerWhereInput = {
       ...(await this.scope.where(u, 'account.read')),
-      ...(q ? { OR: [{ code: { contains: q } }, { name: { contains: q } }, { taxNo: { contains: q } }] } : {}),
-      ...(onlyDebtors ? { balance: { gt: 0 } } : {}),
+      ...(o.q ? { OR: [{ code: { contains: o.q } }, { name: { contains: o.q } }, { taxNo: { contains: o.q } }] } : {}),
+      ...(o.type ? { type: o.type } : {}),
     };
-    const [rows, total] = await Promise.all([
-      this.prisma.erpCustomer.findMany({ where, orderBy: { name: 'asc' }, take: 300 }),
-      this.prisma.erpCustomer.count({ where }),
+    const notExcluded: Prisma.ErpCustomerWhereInput = excluded.length ? { code: { notIn: excluded } } : {};
+    const meta = { windowStart: this.windowStart(), excludedCount: excluded.length };
+    const mark = <T extends { code: string }>(r: T) => ({ ...r, excluded: exSet.has(r.code) });
+
+    if (!o.from && !o.to) {
+      const debt: Prisma.ErpCustomerWhereInput = o.onlyDebtors ? { balance: { gt: 0 } } : {};
+      const listWhere = { AND: [base, debt, o.showExcluded ? {} : notExcluded] };
+      const [rows, total, agg] = await Promise.all([
+        this.prisma.erpCustomer.findMany({ where: listWhere, orderBy: [{ [o.sort]: o.dir }, { code: 'asc' }], take: LIST_LIMIT }),
+        this.prisma.erpCustomer.count({ where: listWhere }),
+        this.prisma.erpCustomer.aggregate({ where: { AND: [base, debt, notExcluded] }, _sum: { debit: true, credit: true, balance: true } }),
+      ]);
+      const totals = { debit: Number(agg._sum.debit ?? 0), credit: Number(agg._sum.credit ?? 0), balance: Number(agg._sum.balance ?? 0) };
+      return { total, totals, ...meta, items: plain(rows).map(mark) };
+    }
+
+    const custs = plain(await this.prisma.erpCustomer.findMany({ where: { AND: [base, o.showExcluded ? {} : notExcluded] } })) as (AccountNums & { balance: number })[];
+    const sums = async (date: Prisma.DateTimeFilter) => {
+      const g = await this.prisma.erpAccountTx.groupBy({ by: ['customerCode'], where: { date }, _sum: { debit: true, credit: true } });
+      return new Map(g.map((x) => [x.customerCode, { debit: Number(x._sum.debit ?? 0), credit: Number(x._sum.credit ?? 0) }]));
+    };
+    const [inRange, afterTo] = await Promise.all([
+      sums({ ...(o.from ? { gte: o.from } : {}), ...(o.to ? { lt: o.to } : {}) }),
+      o.to ? sums({ gte: o.to }) : Promise.resolve(null),
     ]);
-    return { total, items: plain(rows) };
+    const all = custs.map((c) => periodNums(c, inRange, afterTo)).filter((c) => !o.onlyDebtors || c.balance > 0);
+    const sorted = sortAccounts(all, o.sort, o.dir);
+    return {
+      total: sorted.length,
+      totals: sumAccounts(sorted.filter((c) => !exSet.has(c.code))),
+      ...meta,
+      items: sorted.slice(0, LIST_LIMIT).map(mark),
+    };
+  }
+
+  /** Kapsamdaki carilerin tipleri (CARI_TIP) ve adetleri: filtre seçenekleri için. */
+  async customerTypes(u: AuthUser) {
+    const g = await this.prisma.erpCustomer.groupBy({ by: ['type'], where: await this.scope.where(u, 'account.read'), _count: { _all: true } });
+    return g
+      .map((x) => ({ type: x.type?.trim() || null, count: x._count._all }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  /** Cariyi kullanıcının listesinden hariç tutar / geri alır (yalnızca görebildiği cariler). */
+  async setExcluded(u: AuthUser, code: string, excluded: boolean) {
+    const c = await this.prisma.erpCustomer.findFirst({ where: { code, ...(await this.scope.where(u, 'account.read')) }, select: { code: true } });
+    if (!c) throw new NotFoundException('Cari bulunamadı');
+    const key = { userId_customerCode: { userId: u.id, customerCode: c.code } };
+    if (!excluded) {
+      await this.prisma.erpAccountExclusion.deleteMany({ where: { userId: u.id, customerCode: c.code } });
+      return { code: c.code, excluded: false };
+    }
+    // SQL Server parametre sınırı (notIn sorgusu) için makul üst sınır
+    if (await this.prisma.erpAccountExclusion.count({ where: { userId: u.id } }) >= MAX_EXCLUSIONS) {
+      throw new BadRequestException(`En fazla ${MAX_EXCLUSIONS} cari hariç tutulabilir`);
+    }
+    await this.prisma.erpAccountExclusion.upsert({ where: key, create: { userId: u.id, customerCode: c.code }, update: {} });
+    return { code: c.code, excluded: true };
   }
 
   /** Görev formu için hafif arama: yalnızca kod ve ad. Kapsam: cari/sipariş/teklif/görev izinlerinin en genişi. */
@@ -119,20 +211,26 @@ export class ErpService implements OnModuleInit {
     });
   }
 
-  async customer(u: AuthUser, code: string) {
+  /** Cari detayı + ekstre. from/to verilirse ekstre o aralığa iner; devir başlangıçtaki bakiyedir. */
+  async customer(u: AuthUser, code: string, from?: Date, to?: Date) {
     const c = await this.prisma.erpCustomer.findFirst({ where: { code, ...(await this.scope.where(u, 'account.read')) } });
     if (!c) throw new NotFoundException('Cari bulunamadı');
     const txs = await this.prisma.erpAccountTx.findMany({ where: { customerCode: c.code }, orderBy: [{ date: 'asc' }, { id: 'asc' }] });
     // Önbellek son N günü tutar; devir = güncel bakiye − penceredeki hareketlerin net etkisi.
     const windowNet = txs.reduce((n, x) => n + Number(x.debit) - Number(x.credit), 0);
     let running = Number(c.balance) - windowNet;
-    const opening = Math.round(running * 100) / 100;
-    // e-Fatura / e-Arşiv XML'i olan belgeler (ekstrede önizleme düğmesi için; Netsis erişilemezse düğme çıkmaz)
-    const withEDoc = await this.edocs.available(txs.filter((x) => x.docNo && (x.txType === 'B' || x.txType === 'C')).map((x) => x.docNo!));
-    const statement = txs.map((x) => {
+    const windowOpening = running;
+    const withBalance = txs.map((x) => {
       running += Number(x.debit) - Number(x.credit);
-      return { ...plain(x), balance: Math.round(running * 100) / 100, eDoc: !!x.docNo && withEDoc.has(x.docNo) };
+      return { ...plain(x), balance: Math.round(running * 100) / 100 };
     });
+    const period = statementInRange(withBalance, windowOpening, from, to);
+    const opening = period.opening;
+    // e-Fatura / e-Arşiv XML'i olan belgeler (ekstrede önizleme düğmesi için; Netsis erişilemezse düğme çıkmaz)
+    const withEDoc = await this.edocs.available(period.rows.filter((x) => x.docNo && (x.txType === 'B' || x.txType === 'C')).map((x) => x.docNo!));
+    const statement = period.rows.map((x) => ({ ...x, eDoc: !!x.docNo && withEDoc.has(x.docNo) }));
+    const excluded = !!(await this.prisma.erpAccountExclusion.findUnique({ where: { userId_customerCode: { userId: u.id, customerCode: c.code } } }));
+    const ranged = from || to ? { period: { debit: period.debit, credit: period.credit, closing: period.closing } } : {};
     const [orders, quotes] = await Promise.all([
       scopeOf(u, 'order.read')
         ? this.prisma.erpOrder.findMany({ where: { customerCode: c.code, ...(await this.scope.where(u, 'order.read')) }, orderBy: { date: 'desc' }, take: 30 })
@@ -141,7 +239,7 @@ export class ErpService implements OnModuleInit {
         ? this.prisma.erpQuote.findMany({ where: { customerCode: c.code, ...(await this.scope.where(u, 'quote.read')) }, orderBy: { date: 'desc' }, take: 30 })
         : [],
     ]);
-    return { ...plain(c), opening, statement, orders: plain(orders), quotes: plain(quotes) };
+    return { ...plain(c), opening, statement, excluded, ...ranged, orders: plain(orders), quotes: plain(quotes) };
   }
 
   /**
@@ -230,8 +328,11 @@ export class ErpService implements OnModuleInit {
    * Yönetim özeti (report.read kapsamında). Vadesi geçmiş alacak yaklaşık hesaptır:
    * vadesi geçmiş borç hareketleri toplamı, carinin güncel bakiyesiyle sınırlanır (ödemeler belge bazında eşlenmez).
    */
-  async summary(u: AuthUser) {
+  async summary(u: AuthUser, skipExcluded = false) {
     const scope = await this.scope.where(u, 'report.read');
+    // Cari Hesaplar ekranı kullanıcının hariç tuttuğu carileri alacak toplamlarından düşer
+    const excluded = skipExcluded ? await this.excludedCodes(u.id) : [];
+    const custWhere: Prisma.ErpCustomerWhereInput = { ...scope, balance: { gt: 0 }, ...(excluded.length ? { code: { notIn: excluded } } : {}) };
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -240,8 +341,8 @@ export class ErpService implements OnModuleInit {
       this.prisma.erpOrder.aggregate({ where: { ...scope, kind: 'sales', date: { gte: monthStart } }, _count: true, _sum: { total: true } }),
       this.prisma.erpShipment.count({ where: { ...scope, date: { gte: monthStart } } }),
       this.prisma.erpQuote.aggregate({ where: { ...scope, status: 'open' }, _count: true, _sum: { total: true } }),
-      this.prisma.erpCustomer.findMany({ where: { ...scope, balance: { gt: 0 } }, orderBy: { balance: 'desc' }, take: 10, select: { code: true, name: true, balance: true } }),
-      this.prisma.erpCustomer.findMany({ where: { ...scope, balance: { gt: 0 } }, select: { code: true, name: true, balance: true } }),
+      this.prisma.erpCustomer.findMany({ where: custWhere, orderBy: { balance: 'desc' }, take: 10, select: { code: true, name: true, balance: true } }),
+      this.prisma.erpCustomer.findMany({ where: custWhere, select: { code: true, name: true, balance: true } }),
     ]);
     const overdueRaw = await this.prisma.erpAccountTx.groupBy({
       by: ['customerCode'], where: { dueDate: { lt: today }, debit: { gt: 0 } }, _sum: { debit: true },

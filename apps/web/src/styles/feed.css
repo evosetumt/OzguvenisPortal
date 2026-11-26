@@ -71,8 +71,8 @@
 }
 .fd-composer .att-picker { margin: 0; }
 .fd-composer__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid var(--fill); }
-.fd-cust { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13.5px; font-weight: 560; }
-.fd-cust .customer-picker input { width: 200px; }
+.fd-cust { flex: 1 1 100%; display: grid; gap: 6px; color: var(--text-2); font-size: 13.5px; font-weight: 560; }
+.fd-cust__label { display: inline-flex; align-items: center; gap: 6px; }
 .fd-send { display: inline-flex; align-items: center; gap: 6px; padding-inline: 16px; border-radius: 999px; }
 .fd-spacer { flex: 1; }
 
@@ -121,6 +121,24 @@
 .fd-card.is-system .fd-body { margin: 10px 0 6px; font-size: 14.5px; }
 .fd-rel { display: inline-block; margin: 0 0 10px; font-size: 13.5px; font-weight: 650; color: var(--accent-ink); text-decoration: none; }
 a.fd-rel:hover { text-decoration: underline; }
+
+.fd-verb { margin-left: 6px; font-weight: 500; color: var(--text-2); }
+/* Görev kartı: başlık, içerik, sorumlu, durum, alt görevler */
+.fd-task { margin: 10px 0; padding: 12px 14px; display: grid; gap: 8px; border-radius: 14px; background: var(--fill); }
+.fd-task__title { font-size: 16px; font-weight: 750; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.fd-task__title:hover { text-decoration: underline; }
+.fd-task.is-done .fd-task__title { color: var(--text-2); text-decoration: line-through; }
+.fd-task__desc { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.fd-task__meta { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--text-2); }
+.fd-task__meta > span { display: inline-flex; align-items: center; gap: 4px; }
+.fd-task__status { padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 650; }
+.fd-task__status.done { background: color-mix(in srgb, #2fb86a 16%, transparent); color: #1e8a4f; }
+.fd-task__count { margin-left: auto; font-weight: 600; }
+.fd-task__subs { list-style: none; margin: 0; padding: 8px 0 0; display: grid; gap: 5px; border-top: 1px solid var(--separator); }
+.fd-task__subs li { display: flex; align-items: flex-start; gap: 7px; font-size: 13.5px; color: var(--text); }
+.fd-task__subs li svg { flex: none; margin-top: 2px; color: var(--text-2); }
+.fd-task__subs li.done { color: var(--text-2); text-decoration: line-through; }
+.fd-task__subs li.done svg { color: #2fb86a; }
 
 .fd-acts { list-style: none; margin: 0 0 10px; padding: 8px 12px; display: grid; gap: 6px; border-radius: 14px; background: var(--fill); }
 .fd-acts li { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
@@ -225,6 +243,14 @@ a.fd-rel:hover { text-decoration: underline; }
   .fd-files { margin-inline: -14px; }
   .fd-files .receipts { padding: 0 14px; }
   .fd-actions button { font-size: 13px; gap: 5px; }
-  .fd-cust .customer-picker input { width: 100%; }
   .fd-body.is-big { font-size: 19px; }
 }
+
+/* Akış araması ve tarih aralığı */
+.fd-filter { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; }
+.fd-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--separator); color: var(--text-2); }
+.fd-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 15px; }
+.fd-date-btn.on { background: var(--accent-soft); color: var(--accent-ink); }
+.fd-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.fd-dates label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.fd-dates input { height: 40px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--separator); background: var(--surface); color: var(--text); font: inherit; min-width: 0; }

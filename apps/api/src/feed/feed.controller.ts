@@ -10,6 +10,13 @@ const optInt = (v?: string) => {
   return Number.isInteger(n) && n > 0 ? n : undefined;
 };
 
+/** "YYYY-MM-DD" → gün başı (veya endOfDay ile gün sonu); geçersizse yok sayılır. */
+const optDay = (v?: string, endOfDay = false) => {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined;
+  const d = new Date(`${v}T${endOfDay ? '23:59:59.999' : '00:00:00'}`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
 /** Haber akışı. İzin denetimi yok: herkesin en az kendi akışı vardır; kapsam FeedService'te uygulanır. */
 @Controller('feed')
 @UseGuards(AuthGuard)
@@ -17,8 +24,14 @@ export class FeedController {
   constructor(private readonly feed: FeedService, private readonly required: RequiredFieldsService) {}
 
   @Get()
-  list(@CurrentUser() u: AuthUser, @Query('before') before?: string, @Query('userId') userId?: string, @Query('customer') customer?: string, @Query('wall') wall?: string) {
-    return this.feed.list(u, { before: optInt(before), userId: optInt(userId), customerCode: customer?.trim().slice(0, 35) || undefined, wall: wall === '1' });
+  list(
+    @CurrentUser() u: AuthUser, @Query('before') before?: string, @Query('userId') userId?: string, @Query('customer') customer?: string,
+    @Query('wall') wall?: string, @Query('q') q?: string, @Query('from') from?: string, @Query('to') to?: string,
+  ) {
+    return this.feed.list(u, {
+      before: optInt(before), userId: optInt(userId), customerCode: customer?.trim().slice(0, 35) || undefined, wall: wall === '1',
+      q: q?.trim().slice(0, 100) || undefined, from: optDay(from), to: optDay(to, true),
+    });
   }
 
   @Post()

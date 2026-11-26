@@ -79,7 +79,9 @@ export function ExpenseForm({ expense, onClose, onSaved }: Props) {
     } finally { setBusy(false); }
   };
 
-  const onSubmit = (e: FormEvent) => { e.preventDefault(); void save(true); };
+  // Yeni/taslak fişler taslağa kaydedilir (ay sonunda toplu gönderilir); reddedilen masraf düzeltilip doğrudan yeniden gönderilebilir.
+  const resubmit = expense?.status === 'rejected';
+  const onSubmit = (e: FormEvent) => { e.preventDefault(); void save(resubmit); };
   const suggestedName = suggestion?.categoryId ? cats?.find((c) => c.id === suggestion.categoryId)?.name : null;
 
   return (
@@ -134,8 +136,14 @@ export function ExpenseForm({ expense, onClose, onSaved }: Props) {
         {err && <p className="error" role="alert">{err}</p>}
         <div className="actions">
           <button type="button" className="btn ghost" onClick={onClose}>Vazgeç</button>
-          <button type="button" className="btn ghost" disabled={busy || uploading} onClick={() => void save(false)}>Taslak kaydet</button>
-          <button className="btn primary" disabled={busy || uploading || !files.length} title={files.length ? '' : 'Önce fiş ekleyin'}>Onaya gönder</button>
+          {resubmit ? (
+            <>
+              <button type="button" className="btn ghost" disabled={busy || uploading} onClick={() => void save(false)}>Kaydet</button>
+              <button className="btn primary" disabled={busy || uploading || !files.length} title={files.length ? '' : 'Önce fiş ekleyin'}>Yeniden gönder</button>
+            </>
+          ) : (
+            <button className="btn primary" disabled={busy || uploading}>Taslağa kaydet</button>
+          )}
         </div>
       </form>
     </Modal>

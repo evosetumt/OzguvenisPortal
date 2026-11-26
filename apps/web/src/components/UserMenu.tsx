@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Check, ChevronUp, KeyRound, LogOut, Moon, Palette, Settings, SunMoon, Sun, UserRound } from 'lucide-react';
+import { Bell, Check, ChevronDown, KeyRound, LogOut, Moon, Palette, Settings, SunMoon, Sun, UserRound } from 'lucide-react';
 import { api } from '../lib/api';
 import { json } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { PRESENCE, patchPerson } from '../lib/people';
-import type { ThemePref } from '../lib/theme';
+import { PALETTES, getPrefs, setPrefs, subscribe, type ThemePref } from '../lib/theme';
 import { Avatar } from './Avatar';
 
 const STATUSES = ['online', 'focus', 'meeting', 'away'] as const;
 
-/** Sol alttaki kullanıcı kartı: tıklayınca profil, durum, hesap ayarları, tema ve çıkış menüsü yukarı doğru açılır. */
+/** Sağ üstteki kullanıcı (ad + fotoğraf): tıklayınca profil, durum, hesap ayarları, açık/koyu mod, renk teması ve çıkış menüsü aşağı açılır. */
 export function UserMenu({ theme, onTheme, onProfile }: { theme: ThemePref; onTheme(t: ThemePref): void; onProfile(): void }) {
   const { me, logout, patchMe } = useAuth();
   const [open, setOpen] = useState(false);
+  const [palette, setPalette] = useState(getPrefs().palette);
+  useEffect(() => subscribe(() => setPalette(getPrefs().palette)), []);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,16 +66,24 @@ export function UserMenu({ theme, onTheme, onProfile }: { theme: ThemePref; onTh
           <button className="um-item" role="menuitemradio" aria-checked={theme === 'auto'} onClick={() => onTheme('auto')}>
             <SunMoon size={16} />Otomatik (sistem){theme === 'auto' && <Check size={15} className="um-end" />}
           </button>
-          <Link className="um-item" role="menuitem" to="/settings?tab=appearance" onClick={close}><Palette size={16} />Duvar kâğıdı ve renk</Link>
+          <small className="um-label"><Palette size={13} /> Renk teması</small>
+          <div className="um-palettes" role="radiogroup" aria-label="Renk teması">
+            {PALETTES.map((x) => (
+              <button key={x.id} type="button" role="radio" aria-checked={palette === x.id} title={x.label}
+                className={'um-swatch' + (palette === x.id ? ' on' : '')} style={{ ['--sw' as string]: x.swatch }}
+                onClick={() => setPrefs({ palette: x.id })}>
+                {palette === x.id && <Check size={14} />}
+              </button>
+            ))}
+          </div>
           <div className="um-sep" />
-          <p className="um-hint"><kbd>Ctrl</kbd>+<kbd>B</kbd> menüyü gizler / gösterir</p>
           <button className="um-item danger" role="menuitem" onClick={logout}><LogOut size={16} />Çıkış yap</button>
         </div>
       )}
       <button className={'user um-trigger' + (open ? ' on' : '')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Avatar id={me!.id} name={me!.fullName} src={me!.avatarUrl} presence={presence} />
-        <span className="who"><b>{me!.fullName}</b><small>{me!.title ?? me!.department?.name ?? me!.email}</small></span>
-        <ChevronUp size={16} className="um-chev" />
+        <span className="who"><b>{me!.fullName}</b><small>{me!.title ?? me!.department?.name ?? ''}</small></span>
+        <ChevronDown size={16} className="um-chev" />
       </button>
     </div>
   );

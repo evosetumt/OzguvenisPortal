@@ -53,7 +53,6 @@ export function SettingsPage() {
   return (
     <>
       <h1>Ayarlar</h1>
-      <p className="sub">Hesap, bildirim ve yönetim ayarları</p>
       <div className="settings-tabs" ref={tabsRef} role="tablist" aria-label="Ayar bölümleri">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button key={id} role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls="settings-panel"

@@ -32,7 +32,6 @@ export function AnnouncementsPage() {
       <div className="page-head">
         <div>
           <h1>Duyurular</h1>
-          <p className="sub">Seçilen birimlere duyuru; yayında olanlar üst çubukta kayan yazı olarak görünür.</p>
         </div>
         {manage && <button className="btn primary" onClick={() => setEditing('new')}><Plus size={16} /> Yeni duyuru</button>}
       </div>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ListChecks, MessageSquare, Search, UserPlus } from 'lucide-react';
+import { MessageSquare, Search, UserPlus } from 'lucide-react';
 import { useApi } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { PRESENCE } from '../lib/people';
@@ -79,39 +79,28 @@ export function TeamPage() {
           const st = PRESENCE[x.presence] ?? PRESENCE.away;
           const pctLoad = x.workload ? Math.min(100, Math.round((x.workload.open / cap) * 100)) : 0;
           return (
+            // Kompakt kişi kartı: tek satırda fotoğraf, ad/unvan/birim, iş yükü ve hızlı eylemler
             <article key={x.id} className="glass tm-card">
-              <header>
-                <button className="tm-who" onClick={() => open(x.id)}>
-                  <Avatar id={x.id} name={x.fullName} src={x.avatarUrl} size="lg" presence={x.presence} />
-                  <span>
-                    <b>{x.fullName}{x.id === me!.id && <em className="tm-you">Sen</em>}</b>
-                    <small>{x.title ?? (x.isManager ? 'Birim yöneticisi' : '—')}</small>
-                  </span>
-                </button>
-                {x.isManager && <span className="tm-mgr">Yönetici</span>}
-              </header>
-              <div className="tm-row">
-                <span className="tm-state"><i className={'dot-' + st.cls} />{st.label}</span>
-                {x.department && <span className="pf-chip"><i style={{ background: deptHue(x.department.id) }} />{x.department.name}</span>}
-              </div>
-              {x.workload ? (
-                <div className="tm-load">
-                  <div><small>İş yükü</small><b>{x.workload.open}<span> / {cap}</span></b></div>
-                  <div className="tm-bar"><i className={x.workload.open > cap ? 'over' : ''} style={{ width: `${pctLoad}%` }} /></div>
-                </div>
-              ) : (
-                <div className="tm-load muted-load"><small>{x.email}</small></div>
-              )}
-              <footer>
-                {x.workload
-                  ? <span className="tm-tasks"><ListChecks size={15} /><b>{x.workload.open}</b> açık görev{x.workload.overdue > 0 && <em> · {x.workload.overdue} geciken</em>}</span>
-                  : <span />}
-                <span className="tm-actions">
-                  <button className="btn sm" onClick={() => open(x.id)}>Profil</button>
-                  <QuickTaskButton labeled userId={x.id} userName={x.fullName} className="primary tm-assign" />
-                  {x.id !== me!.id && <Link className="icon-btn sm tm-msg" title="Mesaj gönder" to={`/messages?to=${x.id}`}><MessageSquare size={15} /></Link>}
+              <button className="tm-who" onClick={() => open(x.id)} title="Profili aç">
+                <Avatar id={x.id} name={x.fullName} src={x.avatarUrl} presence={x.presence} />
+                <span>
+                  <b>{x.fullName}{x.id === me!.id && <em className="tm-you">Sen</em>}{x.isManager && <em className="tm-mgr">Yönetici</em>}</b>
+                  <small>
+                    {x.department && <i className="tm-dept" style={{ background: deptHue(x.department.id) }} />}
+                    {[x.title, x.department?.name].filter(Boolean).join(' · ') || st.label}
+                  </small>
                 </span>
-              </footer>
+              </button>
+              {x.workload && (
+                <span className="tm-mini" title={`${x.workload.open} açık görev${x.workload.overdue ? ` · ${x.workload.overdue} geciken` : ''}`}>
+                  <b className={x.workload.overdue ? 'late' : ''}>{x.workload.open}</b>
+                  <span className="tm-bar"><i className={x.workload.open > cap ? 'over' : ''} style={{ width: `${pctLoad}%` }} /></span>
+                </span>
+              )}
+              <span className="tm-actions">
+                <QuickTaskButton userId={x.id} userName={x.fullName} />
+                {x.id !== me!.id && <Link className="icon-btn sm tm-msg" title="Mesaj gönder" to={`/messages?to=${x.id}`}><MessageSquare size={15} /></Link>}
+              </span>
             </article>
           );
         })}

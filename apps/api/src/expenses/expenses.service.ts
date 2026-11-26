@@ -317,6 +317,54 @@ export class ExpensesService implements OnModuleInit {
 
   /** Masrafı onaya gönderir: etkin "expense_approval" süreci başlar. Süreç hata verirse masraf eski durumuna döner. */
   async submit(u: AuthUser, id: number) {
+    await this.startApproval(u, id);
+    return this.get(u, id);
+  }
+
+  /**
+   * Taslakları toplu onaya gönderir (örn. ay sonunda). ids verilmezse kullanıcının tüm taslakları gönderilir.
+   * Her masraf ayrı süreç başlatır; birinin hatası diğerlerini durdurmaz, sonuçta ayrı ayrı raporlanır.
+   */
+  async submitDrafts(u: AuthUser, ids?: number[]) {
+    const drafts = await this.prisma.expense.findMany({
+      where: { userId: u.id, deletedAt: null, status: 'draft', ...(ids?.length ? { id: { in: [...new Set(ids)] } } : {}) },
+      select: { id: true },
+      orderBy: [{ expenseDate: 'asc' }, { id: 'asc' }],
+    });
+    const submitted: number[] = [];
+    const failed: { id: number; error: string }[] = [];
+    for (const { id } of drafts) {
+      try {
+        await this.startApproval(u, id);
+        submitted.push(id);
+      } catch (err) {
+        failed.push({ id, error: err instanceof Error ? err.message : 'Gönderilemedi' });
+      }
+    }
+    return { submitted, failed };
+  }
+
+  /** Kullanıcının taslak masraflarının kategori bazında adet ve TL toplamı. */
+  async draftSummary(u: AuthUser) {
+    const where: Prisma.ExpenseWhereInput = { userId: u.id, deletedAt: null, status: 'draft' };
+    const [groups, missingReceipts] = await Promise.all([
+      this.prisma.expense.groupBy({ by: ['categoryId'], where, _count: { _all: true }, _sum: { amountTry: true } }),
+      this.prisma.expense.count({ where: { ...where, receipts: { none: {} } } }),
+    ]);
+    const cats = await this.prisma.expenseCategory.findMany({ where: { id: { in: groups.map((g) => g.categoryId) } }, select: { id: true, name: true } });
+    const nameOf = new Map(cats.map((c) => [c.id, c.name]));
+    const categories = groups
+      .map((g) => ({ categoryId: g.categoryId, name: nameOf.get(g.categoryId) ?? '?', count: g._count._all, totalTry: Number(g._sum.amountTry ?? 0) }))
+      .sort((a, b) => b.totalTry - a.totalTry);
+    return {
+      categories,
+      count: categories.reduce((s, c) => s + c.count, 0),
+      totalTry: Math.round(categories.reduce((s, c) => s + c.totalTry, 0) * 100) / 100,
+      missingReceipts,
+    };
+  }
+
+  private async startApproval(u: AuthUser, id: number) {
     const e = await this.own(u, id);
     const receipts = await this.prisma.expenseReceipt.count({ where: { expenseId: id } });
     if (!receipts) throw new BadRequestException('Onaya göndermek için fiş fotoğrafı veya belgesi ekleyin');
@@ -350,7 +398,6 @@ export class ExpensesService implements OnModuleInit {
     await this.prisma.expense.update({ where: { id }, data: { processInstanceId: inst.id } });
     await this.audit.log(u.id, 'expense.submit', 'expense', id, { processInstanceId: inst.id });
     this.events.emit('expense.submitted', u.id, { expenseId: id, ownerId: u.id, amountTry: Number(full.amountTry), processInstanceId: inst.id });
-    return this.get(u, id);
   }
 
   // ---------- Ayarlar ----------

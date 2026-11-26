@@ -43,7 +43,6 @@ export function ApprovalsPage() {
   return (
     <>
       <h1>Onaylarım</h1>
-      <p className="sub">Onayınızı bekleyen iş akışı görevleri</p>
       <div className="glass toolbar">
         <div className="seg" role="tablist">
           <button role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'on' : ''} onClick={() => { setTab('open'); select(null); }}>Bekleyen</button>

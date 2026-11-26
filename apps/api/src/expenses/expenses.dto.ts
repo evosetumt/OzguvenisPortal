@@ -48,3 +48,8 @@ export class SuggestCategoryDto {
   @IsString() @MinLength(2) @MaxLength(500) description: string;
   @IsOptional() @IsNumber() amount?: number;
 }
+
+export class SubmitDraftsDto {
+  /** Gönderilecek taslaklar; boş/verilmezse kullanıcının tüm taslakları. */
+  @IsOptional() @IsArray() @ArrayMaxSize(500) @IsInt({ each: true }) ids?: number[];
+}

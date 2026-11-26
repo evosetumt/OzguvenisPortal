@@ -53,7 +53,6 @@ export function TrackingPage() {
       <div className="page-head">
         <div>
           <h1>Süre Takibi</h1>
-          <p className="sub">Kasko, sigorta, muayene, bakım, taahhüt, sözleşme ve kira bitişleri</p>
         </div>
         {canWrite && (tab === 'items'
           ? <button className="btn primary" onClick={() => setCreating({})}><Plus size={16} /> Kayıt</button>

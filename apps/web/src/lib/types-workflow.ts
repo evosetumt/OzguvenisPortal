@@ -24,6 +24,17 @@ export interface Expense {
   _count: { receipts: number };
 }
 
+/** GET /expenses/draft-summary: taslak fişlerin kategori bazında toplamı. */
+export interface ExpenseDraftSummary {
+  categories: { categoryId: number; name: string; count: number; totalTry: number }[];
+  count: number;
+  totalTry: number;
+  missingReceipts: number;
+}
+
+/** POST /expenses/submit sonucu. */
+export interface SubmitDraftsResult { submitted: number[]; failed: { id: number; error: string }[] }
+
 export interface ExpenseApproval {
   id: number;
   step: 'auto' | 'manager' | 'accounting' | 'payment';

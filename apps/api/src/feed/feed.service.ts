@@ -31,7 +31,19 @@ function relatedLink(type: string | null, id: string | null, label: string | nul
   }
 }
 
-export interface FeedListQuery { before?: number; userId?: number; customerCode?: string; wall?: boolean }
+export interface FeedListQuery {
+  before?: number; userId?: number; customerCode?: string; wall?: boolean;
+  /** Metin araması: kart metni, firma adı/kodu, ilgili kayıt adı veya yazar adı */
+  q?: string;
+  /** Tarih aralığı (dahil); to günün sonuna kadar */
+  from?: Date; to?: Date;
+}
+
+/** Görev kartında gösterilen güncel görev bilgisi (başlık, içerik, sorumlu, durum, alt görevler). */
+export interface FeedTaskInfo {
+  id: number; title: string; description: string | null; assignee: string | null; assigneeId: number | null;
+  status: string; done: boolean; dueDate: Date | null; subtasks: { id: number; title: string; done: boolean }[];
+}
 
 /**
  * Haber akışı. Görünürlük feed.read kapsamına göre:
@@ -81,6 +93,15 @@ export class FeedService implements OnModuleInit {
     if (q.customerCode) and.push({ customerCode: q.customerCode });
     // wall=1 yalnız eski pano (sosyal) paylaşımlarını döner; iş akışı hepsini gösterir (pano ana sayfadan kaldırıldı).
     if (q.wall) and.push({ kind: WALL_KIND });
+    if (q.from) and.push({ createdAt: { gte: q.from } });
+    if (q.to) and.push({ createdAt: { lte: q.to } });
+    if (q.q) {
+      const text = q.q;
+      and.push({ OR: [
+        { body: { contains: text } }, { customerName: { contains: text } }, { customerCode: { contains: text } },
+        { relatedLabel: { contains: text } }, { author: { fullName: { contains: text } } },
+      ] });
+    }
 
     const rows = await this.prisma.feedPost.findMany({
       where: { AND: and },
@@ -101,9 +122,11 @@ export class FeedService implements OnModuleInit {
     });
     const page = rows.slice(0, PAGE_SIZE);
     const postIds = page.map((p) => p.id);
-    const [activities, myLikes] = await Promise.all([
+    const taskIds = page.filter((p) => p.relatedType === 'task').map((p) => Number(p.relatedId)).filter(Number.isInteger);
+    const [activities, myLikes, tasks] = await Promise.all([
       this.activitiesOf(postIds),
       postIds.length ? this.prisma.feedLike.findMany({ where: { userId: u.id, postId: { in: postIds } }, select: { postId: true } }) : [],
+      this.tasksOf(taskIds),
     ]);
     const likedIds = new Set(myLikes.map((l) => l.postId));
 
@@ -127,6 +150,7 @@ export class FeedService implements OnModuleInit {
         likers: p.likes.map((l) => l.user.fullName),
         comments: p.comments,
         activities: activities.get(p.id) ?? [],
+        task: p.relatedType === 'task' ? tasks.get(Number(p.relatedId)) ?? null : null,
         files: p.files.map((f) => f.attachment),
         canDelete: USER_KINDS.includes(p.kind) && (p.authorId === u.id || scope === 'all'),
       })),
@@ -145,6 +169,27 @@ export class FeedService implements OnModuleInit {
     for (const t of tasks) {
       const key = Number(t.relatedId);
       map.set(key, [...(map.get(key) ?? []), { id: t.id, title: t.title, done: t.status.isDone, assignee: t.assignee?.fullName ?? null, dueDate: t.dueDate }]);
+    }
+    return map;
+  }
+
+  /** Görev kartlarının güncel görev bilgisi: kartı görebilen, kartın anlattığı görevin durumunu ve alt görevlerini de görür. */
+  private async tasksOf(ids: number[]) {
+    const map = new Map<number, FeedTaskInfo>();
+    if (!ids.length) return map;
+    const tasks = await this.prisma.task.findMany({
+      where: { id: { in: [...new Set(ids)] }, deletedAt: null },
+      select: {
+        id: true, title: true, description: true, dueDate: true, assigneeId: true,
+        status: { select: { name: true, isDone: true } }, assignee: { select: { fullName: true } },
+        subtasks: { select: { id: true, title: true, done: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
+    });
+    for (const t of tasks) {
+      map.set(t.id, {
+        id: t.id, title: t.title, description: t.description, assignee: t.assignee?.fullName ?? null, assigneeId: t.assigneeId,
+        status: t.status.name, done: t.status.isDone, dueDate: t.dueDate, subtasks: t.subtasks,
+      });
     }
     return map;
   }

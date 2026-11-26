@@ -2,8 +2,8 @@ import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router
 import { storeGet, storeSet } from '../lib/storage';
 import type { FormEvent, ReactNode } from 'react';
 import {
-  BarChart3, CalendarDays, CheckSquare, ClipboardCheck, FileText, Home, MessageCircle, MessageSquare, Moon, Receipt,
-  Megaphone, Newspaper, Search, Settings, Sun, Timer, Video, Wallet, Workflow, LogOut, Plus, LayoutGrid, X, Menu, PanelLeftClose, PanelLeftOpen, Users,
+  BarChart3, CalendarDays, CheckSquare, ClipboardCheck, FileText, Home, MessageSquare, Moon, Receipt,
+  Megaphone, Search, Settings, Sun, Timer, Video, Wallet, Workflow, Plus, X, Menu, PanelLeftClose, PanelLeftOpen, Users,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { getPrefs, getTheme, setPrefs, setTheme, subscribe } from '../lib/theme';
@@ -15,7 +15,6 @@ import { connectRealtime, disconnectRealtime, useSocketEvent } from '../lib/real
 import { useUnreadMessages } from './chat/useUnreadMessages';
 import { initNativeApp } from '../lib/push';
 import { BrandLogo } from './BrandLogo';
-import { Avatar } from './Avatar';
 import { UserMenu } from './UserMenu';
 import { ProfileDrawer } from './ProfileDrawer';
 import { FilePreview } from './FilePreview';
@@ -29,11 +28,10 @@ import type { ThemePref } from '../lib/theme';
 // perm: görünürlük için gereken izin (dizi ise herhangi biri); yoksa herkese görünür
 interface NavItem { to: string; label: string; icon: typeof Home; perm?: string | string[] }
 const NAV: NavItem[] = [
-  { to: '/', label: 'Ana Sayfa', icon: Home },
+  { to: '/', label: 'Ana Sayfa', icon: Home }, // İş Akışı ana sayfada
   { to: '/tasks', label: 'Görevler', icon: CheckSquare, perm: 'task.read' },
   { to: '/calendar', label: 'Takvim', icon: CalendarDays, perm: 'calendar.read' },
   { to: '/messages', label: 'Mesajlar', icon: MessageSquare },
-  { to: '/feed', label: 'İş Akışları', icon: Newspaper },
   { to: '/announcements', label: 'Duyurular', icon: Megaphone },
   { to: '/team', label: 'Ekip', icon: Users },
   { to: '/meetings', label: 'Toplantılar', icon: Video },
@@ -47,8 +45,6 @@ const NAV: NavItem[] = [
   { to: '/settings', label: 'Ayarlar', icon: Settings },
 ];
 
-/** Telefon alt çubuğunda gösterilecek bölümler (öncelik sırası). */
-const TAB_ORDER = ['/', '/tasks', '/messages', '/calendar', '/feed'];
 
 const SIDE_KEY = 'ozg-sidebar';
 const MOBILE = '(max-width: 860px)';
@@ -76,7 +72,7 @@ function useSidebar() {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { me, can, logout, reloadSession } = useAuth();
+  const { me, can, reloadSession } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const [theme, setT] = useState(getTheme()); // o an görünen (otomatikte sistemin teması)
@@ -84,7 +80,6 @@ export function Shell({ children }: { children: ReactNode }) {
   // Sistem teması değişince (otomatik) veya hesaptan tercih gelince güncellenir.
   useEffect(() => subscribe(() => { setT(getTheme()); setThemePref(getPrefs().theme); }), []);
   const [q, setQ] = useState('');
-  const [sheet, setSheet] = useState(false);
   const side = useSidebar();
   // Gizli menüdeki bağlantılar klavyeyle odaklanmasın (React 18'de inert özelliği tanımlı değil)
   const asideRef = useRef<HTMLElement>(null);
@@ -102,16 +97,12 @@ export function Shell({ children }: { children: ReactNode }) {
   const openCount = myTasks?.open ?? 0;
   const unreadMessages = useUnreadMessages(me!.id);
   const canAdd = can('task.write');
-  // Alt çubuk sekmeleri: öncelik sırasıyla yetkili olunanlar; ortada "+" varsa 3, yoksa 4 sekme sığar.
-  const tabs = TAB_ORDER.map((to) => items.find((n) => n.to === to)).filter((n): n is NavItem => !!n).slice(0, canAdd ? 3 : 4);
-  const isOn = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(to));
-  const onTab = tabs.some((n) => isOn(n.to));
-  const renderTab = ({ to, label, icon: Icon }: NavItem) => (
-    <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>
-      <Icon size={22} /><span>{label.split(' ')[0]}</span>
-      {to === '/messages' && unreadMessages > 0 && <i className="tab-dot" />}
-    </NavLink>
-  );
+  // Alt çubuk: yetkili olunan tüm bölümler yatay kayan şeritte; "+" (hızlı görev) sabit kalır.
+  const tabStrip = useRef<HTMLDivElement>(null);
+  // Açık sekme şeritte görünür olsun (sağda kalan bir bölüme geçilince)
+  useEffect(() => {
+    tabStrip.current?.querySelector('.tab.active')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }, [loc.pathname]);
 
   // Yönetici rolümü/yetkilerimi değiştirdi: menü ve erişim hemen güncellensin.
   useSocketEvent('auth:changed', () => void reloadSession());
@@ -126,9 +117,8 @@ export function Shell({ children }: { children: ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Telefonda sayfa değişince çekmece kapanır; Esc ile de kapanır.
-  useEffect(() => { side.closeMobile(); setSheet(false); }, [loc.pathname, loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { side.closeMobile(); }, [loc.pathname, loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
   useOverlay(side.closeMobile, side.mobileOpen);
-  useOverlay(() => setSheet(false), sheet);
   // Ctrl+B (Mac: ⌘B) menüyü açar/kapatır
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -163,7 +153,6 @@ export function Shell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <UserMenu theme={themePref} onTheme={applyTheme} onProfile={() => openProfile(me!.id)} />
       </aside>
       <div className="main">
         <header className="glass topbar">
@@ -180,49 +169,31 @@ export function Shell({ children }: { children: ReactNode }) {
           )}
           <div className="topbar-end">
             {canAdd && <button className="icon-btn add-btn" title="Hızlı görev ekle" onClick={() => nav('/tasks?new=1')}><Plus size={21} /></button>}
-            <button className="icon-btn theme-btn" title={theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç'} onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
             <NotificationsBell />
+            {/* Sağ üst: açık/koyu mod düğmesi ve kullanıcı (profil, durum, tema ve renk seçimi) */}
+            <button className="icon-btn theme-btn" title={theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç'} onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
+            <UserMenu theme={themePref} onTheme={applyTheme} onProfile={() => openProfile(me!.id)} />
           </div>
         </header>
         <main className="content"><AnnouncementTicker />{children}</main>
         <PushPrompt />
       </div>
-      {/* Telefon: alt sekme çubuğu — ana bölümler, ortada hızlı görev "+", sağda tüm bölümleri açan Menü */}
+      {/* Telefon: alt menü — tüm bölümler yatay kayar, sağda sabit hızlı görev "+" */}
       <nav className="glass tabbar" aria-label="Alt menü">
-        {tabs.slice(0, 2).map(renderTab)}
+        <div className="tab-strip" ref={tabStrip}>
+          {items.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>
+              <Icon size={22} /><span>{label.split(' ')[0]}</span>
+              {to === '/messages' && unreadMessages > 0 && <i className="tab-dot" />}
+            </NavLink>
+          ))}
+        </div>
         {canAdd && (
           <button className="tab tab-add" onClick={() => nav('/tasks?new=1')} aria-label="Hızlı görev ekle">
             <i><Plus size={24} strokeWidth={2.4} /></i><span>Yeni</span>
           </button>
         )}
-        {tabs.slice(2).map(renderTab)}
-        <button className={'tab' + (sheet || !onTab ? ' active' : '')} aria-expanded={sheet} onClick={() => setSheet(!sheet)}>
-          {sheet ? <X size={22} /> : <LayoutGrid size={22} />}<span>Menü</span>
-        </button>
       </nav>
-      {sheet && (
-        <div className="sheet-overlay" onClick={(e) => e.target === e.currentTarget && setSheet(false)}>
-          <div className="glass sheet" role="dialog" aria-label="Tüm bölümler">
-            <p className="sheet-title">Tüm bölümler</p>
-            <div className="sheet-grid">
-              {items.map(({ to, label, icon: Icon }) => (
-                <NavLink key={to} to={to} end={to === '/'} onClick={() => setSheet(false)} className={({ isActive }) => 'sheet-item' + (isActive ? ' active' : '')}>
-                  <span className="sheet-ico"><Icon size={22} /></span><span>{label}</span>
-                  {to === '/messages' && unreadMessages > 0 && <i className="tab-dot" />}
-                </NavLink>
-              ))}
-            </div>
-            <div className="sheet-user">
-              <button className="sheet-me" onClick={() => { setSheet(false); openProfile(me!.id); }} title="Profilim">
-                <Avatar id={me!.id} name={me!.fullName} src={me!.avatarUrl} presence={me!.presence ?? 'online'} />
-                <span className="who"><b>{me!.fullName}</b><small>Profilim ve fotoğrafım</small></span>
-              </button>
-              <button className="icon-btn" title="Tema" onClick={toggle}>{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
-              <button className="icon-btn" title="Çıkış" onClick={logout}><LogOut size={18} /></button>
-            </div>
-          </div>
-        </div>
-      )}
       {profileId && <ProfileDrawer key={profileId} userId={profileId} onClose={closeProfile} />}
       <FilePreview />
     </div>

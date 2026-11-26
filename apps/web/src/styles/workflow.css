@@ -105,3 +105,27 @@
 .att-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .att-actions .btn { color: var(--fg); }
 .att-empty { margin: 0; font-size: 13px; }
+
+/* Masraflar: taslak fişlerim (ay sonunda toplu onaya gönderilir) */
+.drafts { display: grid; gap: 10px; padding: 14px 16px; margin-bottom: 12px; }
+.drafts-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.drafts-head h2 { margin: 0; font-size: 15px; }
+.drafts-total { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.drafts-cats, .drafts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.drafts-cats li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.drafts-cats li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drafts-cats li small { color: var(--text-2); }
+.drafts-cats li b { font-variant-numeric: tabular-nums; min-width: 90px; text-align: right; }
+.drafts-list { border-top: 1px solid var(--glass-strong); padding-top: 6px; }
+.drafts-list li { display: flex; align-items: center; gap: 8px; }
+.drafts-item { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 6px 4px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.drafts-item:hover { background: var(--fill-hover); }
+.drafts-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.drafts-item small { display: flex; align-items: center; gap: 3px; color: var(--text-2); font-size: 12px; }
+.drafts-amt { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+.drafts-warn { color: var(--danger); font-size: 12.5px; margin: 0; }
+.drafts .actions { margin: 0; }
+@media (max-width: 600px) {
+  .drafts { padding: 12px; }
+  .drafts .actions .btn { width: 100%; justify-content: center; }
+}

@@ -40,7 +40,6 @@ export function WorkflowsPage() {
   return (
     <>
       <h1>Süreç Tasarımcısı</h1>
-      <p className="sub">BPMN süreç tanımları ve çalışan süreçlerin izlenmesi</p>
       <div className="glass toolbar">
         <div className="seg" role="tablist">
           <button role="tab" aria-selected={tab === 'defs'} className={tab === 'defs' ? 'on' : ''} onClick={() => setParam('tab', null)}>Süreçler</button>

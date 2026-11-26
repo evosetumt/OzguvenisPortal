@@ -394,6 +394,16 @@ model ErpCustomer {
   @@index([repCode])
 }
 
+/// Kullanıcının Cari Hesaplar listesinde "hariç tut" dediği cariler (kişiye özel; liste ve toplamlardan düşülür).
+/// Kullanıcılar silinmez (deletedAt), bu yüzden User'a ilişki tanımlanmadı.
+model ErpAccountExclusion {
+  userId       Int
+  customerCode String   @db.NVarChar(35)
+  createdAt    DateTime @default(now())
+
+  @@id([userId, customerCode])
+}
+
 model ErpAccountTx {
   id           Int       @id // TBLCAHAR.INC_KEY_NUMBER
   customerCode String    @db.NVarChar(35)

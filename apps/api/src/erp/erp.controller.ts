@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { AuthGuard, AuthUser } from '../auth/auth.guard';
 import { RequirePermission } from '../common/permissions.decorator';
@@ -7,6 +7,7 @@ import { AuditService } from '../common/audit.service';
 import { ErpService, ListFilter } from './erp.service';
 import { ErpSyncService } from './erp-sync.service';
 import { NetsisClient } from './netsis.client';
+import { ACCOUNT_SORTS, AccountSort } from './account-period';
 
 class NetsisConnectionDto {
   /** "sunucu", "10.0.0.5" veya adlandırılmış örnek "sunucu\NETSIS" */
@@ -94,16 +95,51 @@ export class ErpController {
     return this.erp.lookup(u, q?.trim().slice(0, 60) || undefined);
   }
 
+  /**
+   * Cari listesi. q, debtors=1, type (CARI_TIP), from/to (ISO; to = bitiş gününün ertesi, hariç),
+   * sort (name|code|debit|credit|balance), dir (asc|desc), excluded=1 (hariç tutulanları da göster).
+   */
   @Get('customers')
   @RequirePermission('account.read')
-  customers(@CurrentUser() u: AuthUser, @Query('q') q?: string, @Query('debtors') debtors?: string) {
-    return this.erp.customers(u, q?.trim().slice(0, 100) || undefined, debtors === '1');
+  customers(@CurrentUser() u: AuthUser, @Query() q: Record<string, string | undefined>) {
+    const sort = (ACCOUNT_SORTS as readonly string[]).includes(q.sort ?? '') ? (q.sort as AccountSort) : 'name';
+    const from = optDate(q.from);
+    const to = optDate(q.to);
+    if (from && to && from >= to) throw new BadRequestException('Başlangıç tarihi bitişten sonra olamaz');
+    return this.erp.customers(u, {
+      q: q.q?.trim().slice(0, 100) || undefined,
+      onlyDebtors: q.debtors === '1',
+      type: q.type?.trim().slice(0, 5) || undefined,
+      from, to, sort,
+      dir: q.dir === 'desc' ? 'desc' : 'asc',
+      showExcluded: q.excluded === '1',
+    });
+  }
+
+  /** Cari tipi filtresi seçenekleri (kapsamdaki tipler ve adetleri). */
+  @Get('customers/types')
+  @RequirePermission('account.read')
+  customerTypes(@CurrentUser() u: AuthUser) {
+    return this.erp.customerTypes(u);
   }
 
   @Get('customers/:code')
   @RequirePermission('account.read')
-  customer(@CurrentUser() u: AuthUser, @Param('code') code: string) {
-    return this.erp.customer(u, code.slice(0, 35));
+  customer(@CurrentUser() u: AuthUser, @Param('code') code: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.erp.customer(u, code.slice(0, 35), optDate(from), optDate(to));
+  }
+
+  /** Cariyi kendi listemden hariç tut (kişiye özel). */
+  @Put('customers/:code/exclusion')
+  @RequirePermission('account.read')
+  exclude(@CurrentUser() u: AuthUser, @Param('code') code: string) {
+    return this.erp.setExcluded(u, code.slice(0, 35), true);
+  }
+
+  @Delete('customers/:code/exclusion')
+  @RequirePermission('account.read')
+  include(@CurrentUser() u: AuthUser, @Param('code') code: string) {
+    return this.erp.setExcluded(u, code.slice(0, 35), false);
   }
 
   /** Ekstredeki faturanın e-Fatura / e-Arşiv XML'i (önizleme istemcide, gömülü GİB XSLT şablonuyla). */
@@ -145,7 +181,7 @@ export class ErpController {
 
   @Get('reports/summary')
   @RequirePermission('report.read')
-  summary(@CurrentUser() u: AuthUser) {
-    return this.erp.summary(u);
+  summary(@CurrentUser() u: AuthUser, @Query('exclude') exclude?: string) {
+    return this.erp.summary(u, exclude === '1');
   }
 }

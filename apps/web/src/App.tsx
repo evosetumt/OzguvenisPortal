@@ -21,7 +21,6 @@ const TrackingPage = page(() => import('./pages/TrackingPage'), 'TrackingPage');
 const TeamPage = page(() => import('./pages/TeamPage'), 'TeamPage');
 const MessagesPage = page(() => import('./pages/MessagesPage'), 'MessagesPage');
 const MeetingsPage = page(() => import('./pages/MeetingsPage'), 'MeetingsPage');
-const FeedPage = page(() => import('./pages/FeedPage'), 'FeedPage');
 const AnnouncementsPage = page(() => import('./pages/AnnouncementsPage'), 'AnnouncementsPage');
 
 /**
@@ -43,7 +42,8 @@ export function App() {
       <Suspense fallback={<p className="empty">Yükleniyor…</p>}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/feed" element={<FeedPage />} />
+          {/* İş Akışı artık ana sayfada */}
+          <Route path="/feed" element={<Navigate to="/" replace />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/tasks" element={<Guard perm={'task.read'}><TasksPage /></Guard>} />
           <Route path="/calendar" element={<Guard perm={'calendar.read'}><CalendarPage /></Guard>} />

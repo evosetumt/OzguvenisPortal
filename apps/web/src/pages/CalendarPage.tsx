@@ -60,7 +60,6 @@ export function CalendarPage() {
       <div className="page-head">
         <div>
           <h1>Takvim</h1>
-          <p className="sub">Etkinlikler ve görev bitiş tarihleri</p>
         </div>
         <span className="cal-head-actions">
           {deviceCalendarSupported() && <button className="btn" onClick={() => setPhoneCal(true)}><CalendarSync size={16} /> Telefon takvimi</button>}

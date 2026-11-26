@@ -64,7 +64,6 @@ export function PaymentsPage() {
       <div className="page-head">
         <div>
           <h1>Ödemeler</h1>
-          <p className="sub">Çek, kredi kartı, kredi taksiti, vergi ve SGK ödemeleri · vadeden {settings?.defaultLeadDays ?? 7} gün önce birim yöneticisine görev düşer</p>
         </div>
         {canCreate && <button className="btn primary" onClick={() => setCreating(true)}><Plus size={16} /> Ödeme</button>}
       </div>

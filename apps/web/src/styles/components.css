@@ -270,3 +270,34 @@ textarea { resize: vertical; width: 100%; }
 .req { color: var(--danger); font-style: normal; font-weight: 700; margin-left: 2px; }
 .req-forms { display: grid; gap: 16px; margin: 8px 0 12px; }
 .req-form h4 { margin: 0 0 8px; }
+
+/* ---------- Cari seçici (CustomerPicker): arama + sonuç listesi, seçilince çip ---------- */
+.customer-picker { position: relative; display: block; min-width: 0; }
+.cp-input {
+  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border-radius: 12px;
+  border: 1px solid var(--separator); background: var(--surface); color: var(--muted);
+}
+.cp-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.cp-input input { flex: 1; min-width: 0; height: 100%; border: 0 !important; outline: 0; background: transparent !important; box-shadow: none !important; padding: 0 !important; color: var(--fg); font: inherit; font-size: 15px; }
+.cp-spin { animation: cp-spin 0.8s linear infinite; flex: none; }
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+.cp-list {
+  position: absolute; z-index: 70; left: 0; right: 0; top: calc(100% + 4px); max-height: min(320px, 45dvh); overflow: auto;
+  list-style: none; margin: 0; padding: 6px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-lift);
+}
+.cp-list button:not(.link-btn) {
+  display: grid; gap: 2px; width: 100%; padding: 9px 10px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--fg); font: inherit; text-align: left; cursor: pointer;
+}
+.cp-list button.on, .cp-list button:not(.link-btn):hover { background: var(--accent-soft); }
+.cp-list b { font-size: 14px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-list small { color: var(--muted); font-size: 12px; }
+.cp-empty { padding: 10px; color: var(--muted); font-size: 13px; }
+.cp-chip {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 4px 4px 12px; border-radius: 12px;
+  background: var(--accent-soft); color: var(--accent-ink);
+}
+.cp-chip svg { flex: none; }
+.cp-chip__text { flex: 1; display: grid; min-width: 0; }
+.cp-chip__text b { color: var(--fg); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-chip__text small { color: var(--muted); font-size: 12px; }

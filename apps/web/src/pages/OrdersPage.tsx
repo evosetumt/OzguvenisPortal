@@ -58,7 +58,6 @@ export function OrdersPage() {
       <div className="page-head">
         <div>
           <h1>Sipariş / Teklif</h1>
-          <p className="sub">Netsis'ten salt okunur aktarılır; değişiklikler Netsis'te yapılır.</p>
         </div>
       </div>
 

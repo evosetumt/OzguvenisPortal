@@ -61,7 +61,6 @@ export function MeetingsPage() {
       <div className="page-head">
         <div>
           <h1>Toplantılar</h1>
-          <p className="sub">Görüntülü toplantılar takvime de yansır</p>
         </div>
         <button className="btn primary" onClick={() => setCreating(true)}><Plus size={16} /> Toplantı planla</button>
       </div>

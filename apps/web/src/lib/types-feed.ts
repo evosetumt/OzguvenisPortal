@@ -6,6 +6,19 @@ export interface FeedComment { id: number; body: string; createdAt: string; user
 
 export interface FeedActivity { id: number; title: string; done: boolean; assignee: string | null; dueDate: string | null }
 
+/** Görev kartının anlattığı görevin güncel hâli */
+export interface FeedTask {
+  id: number;
+  title: string;
+  description: string | null;
+  assignee: string | null;
+  assigneeId: number | null;
+  status: string;
+  done: boolean;
+  dueDate: string | null;
+  subtasks: { id: number; title: string; done: boolean }[];
+}
+
 export type FeedKind = 'post' | 'social' | 'task_created' | 'task_completed' | 'order_created' | 'order_status' | 'quote_created' | 'shipment';
 
 export interface FeedItem {
@@ -25,6 +38,8 @@ export interface FeedItem {
   likers: string[];
   comments: FeedComment[];
   activities: FeedActivity[];
+  /** Görev kartlarında (task_created / task_completed) görevin güncel bilgisi; görev silinmişse null */
+  task?: FeedTask | null;
   /** Paylaşımdaki fotoğraf ve dosyalar */
   files?: FeedFile[];
   canDelete: boolean;

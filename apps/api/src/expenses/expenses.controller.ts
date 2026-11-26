@@ -3,7 +3,7 @@ import { AuthGuard, AuthUser } from '../auth/auth.guard';
 import { RequirePermission } from '../common/permissions.decorator';
 import { CurrentUser } from '../common/current-user.decorator';
 import { ExpensesService } from './expenses.service';
-import { CategoryDto, ExpenseDto, ExpenseSettingsDto, SuggestCategoryDto, UpdateCategoryDto, UpdateExpenseDto } from './expenses.dto';
+import { CategoryDto, ExpenseDto, ExpenseSettingsDto, SubmitDraftsDto, SuggestCategoryDto, UpdateCategoryDto, UpdateExpenseDto } from './expenses.dto';
 
 const STATUSES = ['draft', 'submitted', 'manager_approved', 'accounting_approved', 'rejected', 'paid'];
 /** Kategori ve eşik ayarlarını muhasebe veya kullanıcı yöneticisi değiştirebilir. */
@@ -54,6 +54,21 @@ export class ExpensesController {
   @RequirePermission('expense.create', 'expense.approve', 'expense.accounting')
   list(@CurrentUser() u: AuthUser, @Query('view') view = 'mine', @Query('status') status?: string) {
     return this.svc.list(u, view, status && STATUSES.includes(status) ? status : undefined);
+  }
+
+  /** Kendi taslaklarım: kategori bazında adet + TL toplamı. (":id" rotasından önce tanımlı olmalı.) */
+  @Get('expenses/draft-summary')
+  @RequirePermission('expense.create')
+  draftSummary(@CurrentUser() u: AuthUser) {
+    return this.svc.draftSummary(u);
+  }
+
+  /** Taslakları toplu onaya gönderir; ids verilmezse tüm taslaklarım. */
+  @Post('expenses/submit')
+  @HttpCode(200)
+  @RequirePermission('expense.create')
+  submitDrafts(@CurrentUser() u: AuthUser, @Body() dto: SubmitDraftsDto) {
+    return this.svc.submitDrafts(u, dto.ids);
   }
 
   @Get('expenses/:id')

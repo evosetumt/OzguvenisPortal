@@ -19,7 +19,22 @@ export interface Customer {
   credit: number;
   balance: number;
   syncedAt: string;
+  /** Kullanıcı bu cariyi listesinden hariç tutmuş (yalnız "hariç tutulanları göster" açıkken gelir) */
+  excluded?: boolean;
 }
+
+/** /erp/customers cevabı. Tarih aralığı seçiliyse borç/alacak dönem hareketleri, bakiye dönem sonu bakiyesidir. */
+export interface CustomerList {
+  total: number;
+  /** Hariç tutulanlar düşülmüş toplamlar (listedeki 300 satırla sınırlı değil) */
+  totals: { debit: number; credit: number; balance: number };
+  /** Önbellekteki hareket penceresinin başı: bundan eski dönem rakamları eksik kalır */
+  windowStart: string;
+  excludedCount: number;
+  items: Customer[];
+}
+
+export interface CustomerTypeCount { type: string | null; count: number }
 
 export interface AccountTx {
   id: number;
@@ -88,6 +103,8 @@ export interface QuoteDetail extends Quote { items: DocItem[]; tasks: { id: numb
 
 export interface CustomerDetail extends Customer {
   opening: number;
+  /** Yalnız tarih aralığıyla istenince: dönem borç/alacak ve dönem sonu bakiye */
+  period?: { debit: number; credit: number; closing: number };
   statement: AccountTx[];
   orders: Order[];
   quotes: Quote[];

@@ -1,19 +1,21 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Banknote, Building2, CheckCircle2, CheckSquare, FileText, Heart, MessageCircle, SendHorizontal, Trash2, Truck, X } from 'lucide-react';
+import { Banknote, Building2, CheckCircle2, CheckSquare, Circle, UserRound, FileText, Heart, MessageCircle, SendHorizontal, Trash2, Truck, X } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { api } from '../../lib/api';
 import { json } from '../../lib/data';
 import { useAuth } from '../../lib/auth';
 import { formatDue, formatTime } from '../../lib/format';
 import { safeAppPath } from '../../lib/safe-path';
-import type { FeedComment, FeedFile, FeedItem, FeedKind } from '../../lib/types-feed';
+import type { FeedComment, FeedFile, FeedItem, FeedKind, FeedTask } from '../../lib/types-feed';
 import { fileUrl, openFile } from '../../lib/files';
 import { Receipt } from '../workflow/Receipt';
 
 const KIND_ICON: Record<Exclude<FeedKind, 'post' | 'social'>, typeof Banknote> = {
   task_created: CheckSquare, task_completed: CheckCircle2, order_created: Banknote, order_status: Banknote, quote_created: FileText, shipment: Truck,
 };
+
+const TASK_VERB: Partial<Record<FeedKind, string>> = { task_created: 'görev açtı', task_completed: 'görevi tamamladı' };
 
 /** "Bugün 08:15", "Dün 16:36", "18 Kas 10:02" */
 export function feedWhen(iso: string) {
@@ -91,7 +93,7 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
           </span>
         )}
         <div className="fd-meta">
-          <b className="fd-who">{person?.fullName ?? 'Sistem'}{isNew && <span className="fd-new">Yeni</span>}</b>
+          <b className="fd-who">{person?.fullName ?? 'Sistem'}{item.task && <span className="fd-verb">{TASK_VERB[item.kind] ?? ''}</span>}{isNew && <span className="fd-new">Yeni</span>}</b>
           <span className="fd-sub">
             <small>{feedWhen(item.createdAt)}</small>
             {(item.customerName || item.customerCode) && (
@@ -107,8 +109,8 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
         {item.canDelete && <button className="icon-btn sm fd-del" title="Kartı sil" onClick={() => void remove()} disabled={busy}><Trash2 size={15} /></button>}
       </header>
 
-      {item.body && <p className={'fd-body' + (isShortPost(item) ? ' is-big' : '')}>{item.body}</p>}
-      {item.relatedLabel && (href ? <Link className="fd-rel" to={href}>{item.relatedLabel} →</Link> : <span className="fd-rel">{item.relatedLabel}</span>)}
+      {item.task ? <FeedTaskBlock task={item.task} /> : item.body && <p className={'fd-body' + (isShortPost(item) ? ' is-big' : '')}>{item.body}</p>}
+      {item.relatedLabel && !item.task && (href ? <Link className="fd-rel" to={href}>{item.relatedLabel} →</Link> : <span className="fd-rel">{item.relatedLabel}</span>)}
       {(item.files?.length ?? 0) > 0 && <FeedPhotos files={item.files!} />}
 
       {item.activities.length > 0 && (
@@ -168,6 +170,37 @@ export function FeedCard({ item, onChange, onRemoved, onAddActivity }: Props) {
       )}
       {err && <p className="error fd-err">{err}</p>}
     </article>
+  );
+}
+
+const VISIBLE_SUBTASKS = 6;
+
+/** Görev kartı: başlık, içerik, kime açıldığı, durumu ve alt görevler (görevin güncel hâli). */
+function FeedTaskBlock({ task }: { task: FeedTask }) {
+  const [all, setAll] = useState(false);
+  const doneCount = task.subtasks.filter((s) => s.done).length;
+  const subs = all ? task.subtasks : task.subtasks.slice(0, VISIBLE_SUBTASKS);
+  return (
+    <div className={'fd-task' + (task.done ? ' is-done' : '')}>
+      <Link to={`/tasks?id=${task.id}`} className="fd-task__title">{task.title}</Link>
+      {task.description && <p className="fd-task__desc">{task.description}</p>}
+      <div className="fd-task__meta">
+        <span className={'fd-task__status' + (task.done ? ' done' : '')}>{task.done ? <CheckCircle2 size={13} /> : <Circle size={13} />}{task.status}</span>
+        {task.assignee && <span><UserRound size={13} />{task.assignee}</span>}
+        {task.dueDate && <span>Bitiş: {formatDue(task.dueDate)}</span>}
+        {task.subtasks.length > 0 && <span className="fd-task__count">{doneCount}/{task.subtasks.length} alt görev</span>}
+      </div>
+      {task.subtasks.length > 0 && (
+        <ul className="fd-task__subs">
+          {subs.map((st) => (
+            <li key={st.id} className={st.done ? 'done' : ''}>{st.done ? <CheckCircle2 size={14} /> : <Circle size={14} />}<span>{st.title}</span></li>
+          ))}
+          {task.subtasks.length > subs.length && (
+            <li><button type="button" className="link-btn" onClick={() => setAll(true)}>+{task.subtasks.length - subs.length} alt görev daha</button></li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 

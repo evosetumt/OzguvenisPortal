@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { AuthProvider } from './lib/auth';
 import { initTheme } from './lib/theme';
+import { installSwipeDismiss } from './lib/swipe-dismiss';
 import { registerServiceWorker, requestNotificationPermission } from './lib/push';
 import { initEffects } from './lib/effects';
 import { initFitText } from './lib/fit-text';
@@ -18,6 +19,7 @@ import './styles/appearance.css';
 if (Capacitor.getPlatform() === 'android' || /Android/i.test(navigator.userAgent)) document.documentElement.classList.add('lite-fx');
 
 initTheme();
+installSwipeDismiss();
 initEffects();
 initFitText(); // istatistik kartlarındaki uzun tutarlar kutuya sığsın
 initKeyboardTracking(); // telefonda klavye açılınca sohbetin yazma kutusu klavyenin üstünde kalsın

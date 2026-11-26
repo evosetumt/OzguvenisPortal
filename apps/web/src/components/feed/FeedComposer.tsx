@@ -69,11 +69,10 @@ export function FeedComposer({ onPosted }: { onPosted(): void }) {
       <AttachmentPicker files={files} onAdd={(add) => setFiles((cur) => [...cur, ...add])}
         onRemove={(x) => setFiles((cur) => cur.filter((y) => y.id !== x.id))} />
       <div className="fd-composer__bar">
-        <label className="fd-cust">
-          <Building2 size={16} />
-          Firma{req.has('customerCode') && <i className="req" aria-hidden="true">*</i>}
+        <div className="fd-cust">
+          <span className="fd-cust__label"><Building2 size={16} />Firma{req.has('customerCode') && <i className="req" aria-hidden="true">*</i>}</span>
           <CustomerPicker value={customer} onChange={setCustomer} />
-        </label>
+        </div>
         <span className="fd-spacer" />
         <button type="button" className="btn ghost sm" onClick={reset}>Vazgeç</button>
         <button className="btn primary sm fd-send" disabled={!canPost}><Send size={15} /> {busy ? 'Paylaşılıyor…' : 'Paylaş'}</button>
